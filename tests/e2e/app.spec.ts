@@ -4,7 +4,7 @@ import {open} from './helpers';
 import {manuals, scenario} from '../../src/content/loadContent';
 import {L} from '../../src/ui/labels';
 
-test('순서: 시작 → ① 아침 영상 → ② 영상 4편 → ③ 전문가 4분야 → ④ 3D 미션, 클리커만으로, 오프라인', async ({page}) => {
+test('순서: 시작 → ① 아침 영상 → ② 영상 4편 → ③ 전문가 4분야 → ④ 역할 변신, 클리커만으로, 오프라인', async ({page}) => {
   const errors: string[] = [];
   const external: string[] = [];
   page.on('pageerror', e => errors.push(e.message));
@@ -23,8 +23,8 @@ test('순서: 시작 → ① 아침 영상 → ② 영상 4편 → ③ 전문가
   await expect(page.locator('#stage')).toHaveAttribute('data-screen', 'S03');
   await expect(page.locator('.expert-card')).toHaveCount(4);
   await page.keyboard.press('PageDown');
-  await expect(page).toHaveURL(/mode=mission/);
-  await expect(page.locator('#stage')).toHaveAttribute('data-screen', 'hub');
+  await expect(page).toHaveURL(/mode=roles/);
+  await expect(page.locator('#stage')).toHaveAttribute('data-screen', 'intro');
   expect(errors).toEqual([]);
   expect(external).toEqual([]);
 });

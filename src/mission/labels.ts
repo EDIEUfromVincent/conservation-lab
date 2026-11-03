@@ -76,4 +76,12 @@ export const ML = {
   ideaTag: '꼭 기억해요',
   journalTag: '연구 일지',
   caseNo: '사건',
+  expertQ: '이 사건에 어떤 전문가를 먼저 보낼까요?',
+  expertRight: '맞아요!',
+  expertSupport: '이 사건에서 함께 일할 전문가예요. 그런데 앞장설 전문가는 누구일까요?',
+  expertOther: '이 유산이 무엇으로 만들어졌는지 다시 봐요. 재료:',
+  needExpert: '먼저 이 사건에 보낼 전문가를 골라요.',
+  roleSuffix: '담당',
+  turn: '차례예요!',
+  roleCard: '역할 카드',
 } as const;

@@ -8,10 +8,14 @@ import {fitStage} from '../ui/stage';
 import {ML} from '../mission/labels';
 import {
   act, initialMission, primary, missions, missionFor, caseOf, decisionOf, lastAttempt, lastOutcome, hint, clueOf, clueText,
-  placeOf, placeLeft, placeOpen, facts, unlocked, validMission, NONE,
+  placeOf, placeLeft, placeOpen, facts, unlocked, validMission, expertReady, NONE,
   type MissionAction, type MissionState, type MissionClue, type MissionPlace,
 } from '../mission/engine';
 import {mountScene, type SceneHandle} from '../mission/scene';
+import {joystick} from '../mission/joystick';
+import {roleOf} from '../roles/engine';
+import {roleIcon} from '../roles/webtoon';
+import '../roles/style.css';
 import '../mission/style.css';
 
 const LETTERS = ['A', 'B', 'C', 'D'] as const;
@@ -78,7 +82,7 @@ function runMission(root: HTMLElement, caseId: string) {
   const KEY = keyOf(caseId);
   let state = loadMission(caseId) ?? initialMission(caseId);
   // 화면에만 쓰는 값: 방금 고른 카드, 실습 기록 저장 여부, 가까이 있는 장소
-  const view = {picked: '', pickedOk: false, labReported: false, near: null as string | null};
+  const view = {picked: '', pickedOk: false, labReported: false, near: null as string | null, expert: ''};
 
   const stage = el('div', {id: 'stage', class: 'ms'});
   const world = el('div', {class: 'ms-world'});
@@ -116,6 +120,8 @@ function runMission(root: HTMLElement, caseId: string) {
     const {state: next, effect} = act(state, a);
     state = next;
     if (a.t === 'answer') { view.picked = a.option; view.pickedOk = !!effect.correct; }
+    if (a.t === 'pickExpert') view.expert = a.id;
+    if (effect.message === 'needExpert') say(ML.needExpert);
     else if (a.t !== 'labWork') view.picked = '';
     if (a.t === 'lab') view.labReported = false;
     if (effect.message === 'locked') say(ML.needUnlock);
@@ -169,6 +175,12 @@ function runMission(root: HTMLElement, caseId: string) {
       el('div', {class: 'ms-mentor-body'}, el('span', {class: 'ms-mentor-name'}, ML.mentor), el('p', {}, text)));
   }
 
+  /** '○○ 담당 차례!' 배지: 이 단서를 맡는 역할 */
+  function roleTag(id: string) {
+    const r = roleOf(id)!;
+    return el('span', {class: 'rl-badge ms-turn', style: `--rc:${r.color}`, 'data-role': r.id}, roleIcon(r.id, r.color), `${r.name} ${ML.roleSuffix} ${ML.turn}`);
+  }
+
   /** 클리커 '다음'이 누를 버튼에 표시 */
   function primaryButton(label: string, action: MissionAction, attrs: Record<string, unknown> = {}) {
     return button(label, () => dispatch(action), {class: 'ms-btn primary', 'data-primary': '', ...attrs});
@@ -176,13 +188,29 @@ function runMission(root: HTMLElement, caseId: string) {
 
   function incidentView() {
     const lead = scenario.experts.find(x => x.id === c.lead)!;
+    const ready = expertReady(state);
+    const last = view.expert || state.expertTries.at(-1) || '';
+    const feedback = ready
+      ? el('div', {class: 'ms-call ' + lead.id}, el('span', {class: 'ms-symbol'}, lead.symbol), el('p', {}, `${ML.expertRight} ${m.call}`))
+      : last && c.support.includes(last as never) ? el('p', {class: 'rl-again', 'data-testid': 'expert-feedback'}, ML.expertSupport)
+      : last ? el('p', {class: 'rl-again', 'data-testid': 'expert-feedback'}, `${ML.expertOther} ${c.material}`) : null;
     layer.append(el('div', {class: 'ms-scrim'}), el('section', {class: 'ms-card ms-incident pop'},
       el('div', {class: 'ms-alarm'}, el('span', {class: 'ms-alarm-icon', 'aria-hidden': 'true'}, '!'), ML.alarm),
       el('p', {class: 'ms-band'}, [`${ML.file} #${c.order}`, ML.real, c.place, c.year].join(' · ')),
       el('h1', {}, c.title),
       el('div', {class: 'ms-brief'}, ...c.brief.lines.map((line, i) => el('p', {class: i === c.brief.lines.length - 1 ? 'strong' : ''}, line))),
-      el('div', {class: 'ms-call ' + lead.id}, el('span', {class: 'ms-symbol'}, lead.symbol), el('p', {}, m.call)),
-      el('div', {class: 'ms-actions'}, primaryButton(ML.start + ' →', {t: 'start'}))));
+      el('p', {class: 'ms-label'}, ML.expertQ),
+      el('div', {class: 'ms-experts'}, ...scenario.experts.map((e, i) => {
+        const tried = state.expertTries.includes(e.id);
+        const b = button('', () => dispatch({t: 'pickExpert', id: e.id}), {
+          class: 'ms-expert ' + e.id + (ready && e.id === c.lead ? ' right' : tried && e.id !== c.lead ? ' tried' : ''),
+          'data-expert': e.id, disabled: ready || (tried && e.id !== c.lead),
+        });
+        b.append(el('span', {class: 'ms-letter'}, LETTERS[i]), el('span', {class: 'ms-symbol'}, e.symbol), el('strong', {}, e.label));
+        return b;
+      })),
+      feedback,
+      el('div', {class: 'ms-actions'}, primaryButton(ML.start + ' →', {t: 'start'}, {disabled: !ready}))));
   }
 
   function mapView() {
@@ -248,6 +276,7 @@ function runMission(root: HTMLElement, caseId: string) {
       });
       tile.append(
         el('span', {class: 'ms-num'}, i + 1),
+        el('span', {class: 'ms-spot-role', 'aria-hidden': 'true'}, roleIcon(clue.role, roleOf(clue.role)!.color)),
         el('span', {class: 'ms-spot-mark', 'aria-hidden': 'true'}, solved ? '✓' : waiting ? '…' : opened ? '!' : ML.hidden),
         el('strong', {}, clue.spot),
         el('span', {class: 'ms-spot-text'}, solved ? clue.fact : waiting ? ML.labHint : ML.look));
@@ -271,6 +300,7 @@ function runMission(root: HTMLElement, caseId: string) {
     layer.append(el('div', {class: 'ms-scrim'}), el('section', {class: 'ms-card ms-clue pop'},
       el('div', {class: 'ms-clue-top'},
         el('div', {class: 'ms-note'},
+          roleTag(clue.role),
           el('p', {class: 'ms-note-tag'}, `${ML.hidden} ${placeOf(state, state.place!).name} · ${clue.spot}`),
           el('p', {class: 'ms-note-text', 'data-testid': 'clue-text'}, clueText(caseId, clue))),
         solved
@@ -295,6 +325,11 @@ function runMission(root: HTMLElement, caseId: string) {
     if (!h) {
       card.classList.add('none');
       card.append(el('span', {class: 'ms-option-head'}, el('span', {class: 'ms-symbol'}, '✕'), ML.noneTitle), el('strong', {}, ML.noneSub));
+    } else if (h.kind === 'role') {
+      const r = roleOf(id.split(':')[1])!;
+      card.classList.add('role');
+      card.style.setProperty('--rc', r.color);
+      card.append(el('span', {class: 'ms-option-head'}, roleIcon(r.id, r.color), `${r.name} ${ML.roleSuffix} · ${ML.roleCard}`), el('strong', {}, h.clue));
     } else if (h.kind === 'journal') {
       card.classList.add('journal');
       card.append(el('span', {class: 'ms-option-head'}, el('span', {class: 'ms-symbol'}, h.symbol), `${ML.journalTag} · ${ML.caseNo} ${h.caseOrder}`), el('strong', {}, h.clue));
@@ -434,7 +469,7 @@ function runMission(root: HTMLElement, caseId: string) {
   // ── 조이스틱 + 방향키·WASD ──
   const held = new Set<string>();
   let joyVec = {x: 0, y: 0};
-  const joy = joystick(v => { joyVec = v; push(); });
+  const joy = joystick(ML.joystick, v => { joyVec = v; push(); });
   function push() {
     if (state.screen !== 'map') { scene.setInput(0, 0); return; }
     const k = (a: string, b: string) => (held.has(a) || held.has(b) ? 1 : 0);
@@ -474,6 +509,11 @@ function runMission(root: HTMLElement, caseId: string) {
     }
     if (state.screen === 'map' && lower === 'e' && view.near) { dispatch({t: 'place', id: view.near}); return; }
     const letter = k.toUpperCase();
+    if (state.screen === 'incident' && LETTERS.includes(letter as never)) {
+      const e = scenario.experts[LETTERS.indexOf(letter as never)];
+      if (e) dispatch({t: 'pickExpert', id: e.id});
+      return;
+    }
     if (state.screen === 'clue' && LETTERS.includes(letter as never)) {
       const option = clueOf(state, state.clue!).options[LETTERS.indexOf(letter as never)];
       if (option) dispatch({t: 'answer', option});
@@ -496,32 +536,6 @@ function runMission(root: HTMLElement, caseId: string) {
 
   scene.goTo(state.place);
   render();
-}
-
-/** 화면 위 조이스틱. 끌면 -1~1 벡터(위가 +y)를 알린다. */
-function joystick(onMove: (v: {x: number; y: number}) => void) {
-  const knob = el('span', {class: 'ms-joy-knob'});
-  const base = el('div', {class: 'ms-joy', role: 'application', 'aria-label': ML.joystick, 'data-testid': 'joystick'}, knob);
-  const R = 90;
-  let id: number | null = null;
-  const set = (dx: number, dy: number) => {
-    const len = Math.hypot(dx, dy);
-    if (len > R) { dx *= R / len; dy *= R / len; }
-    knob.style.transform = `translate(${dx}px, ${dy}px)`;
-    onMove({x: dx / R, y: -dy / R});
-  };
-  const release = () => { id = null; knob.style.transform = ''; onMove({x: 0, y: 0}); };
-  const move = (e: PointerEvent) => {
-    if (e.pointerId !== id) return;
-    const r = base.getBoundingClientRect();
-    const scale = r.width / base.offsetWidth || 1;   // 무대가 줄어든 만큼 되돌린다
-    set((e.clientX - (r.left + r.width / 2)) / scale, (e.clientY - (r.top + r.height / 2)) / scale);
-  };
-  base.addEventListener('pointerdown', e => { id = e.pointerId; base.setPointerCapture(e.pointerId); move(e); });
-  base.addEventListener('pointermove', move);
-  base.addEventListener('pointerup', release);
-  base.addEventListener('pointercancel', release);
-  return {el: base, release};
 }
 
 // ── 그림 조각 ──

@@ -1,12 +1,13 @@
 import raw from '../../data/missions.json' with {type: 'json'};
 import {scenario, manuals} from '../content/loadContent';
 import type {Case, ChoiceKey, Decision, ExpertId, Outcome} from '../content/types';
+import {roleOf, type RoleId} from '../roles/engine';
 
 // 3D 미션: 사건 → 장소 → 단서('?') → 매뉴얼 카드로 풀기 → 결정 → 결과 → 실제 역사.
 // 화면과 무관한 순수 상태 전이만 둔다(단위 테스트 대상).
 
 export interface MissionClue {
-  id: string; spot: string; text?: string; source?: 'lab';
+  id: string; spot: string; role: RoleId; text?: string; source?: 'lab';
   options: string[]; answer: string; fact: string; nudge: string;
 }
 export type Slot = 'main' | 'detail' | 'archive' | 'lab';
@@ -25,9 +26,10 @@ export const NONE = 'none';
 
 export interface Attempt {choice: ChoiceKey; reason: string}
 export interface MissionState {
-  version: 2;
+  version: 3;
   caseId: string;
   screen: Screen;
+  expertTries: string[];               // 사건 발생 때 보낸 전문가(순서대로). 주도 전문가를 고르면 조사를 시작한다.
   place: string | null;
   clue: string | null;
   decision: string | null;
@@ -44,6 +46,7 @@ export interface MissionState {
 
 export type MissionAction =
   | {t: 'start'} | {t: 'map'} | {t: 'back'}
+  | {t: 'pickExpert'; id: string}
   | {t: 'place'; id: string}
   | {t: 'open'; id: string}
   | {t: 'answer'; option: string}
@@ -54,7 +57,7 @@ export type MissionAction =
   | {t: 'commit'} | {t: 'forward'} | {t: 'retry'} | {t: 'proceed'}
   | {t: 'history'} | {t: 'complete'};
 
-export interface Effect {correct?: boolean; message?: 'locked' | 'placeLocked' | 'needChoice' | 'needReason'}
+export interface Effect {correct?: boolean; support?: boolean; message?: 'locked' | 'placeLocked' | 'needChoice' | 'needReason' | 'needExpert'}
 
 export function missionFor(caseId: string) {
   const m = missions.find(x => x.caseId === caseId);
@@ -68,7 +71,7 @@ export const outcomeOf = (caseId: string, id: string) =>
   caseOf(caseId).nodes.find((n): n is Outcome => n.type === 'outcome' && n.id === id)!;
 
 export interface Hint {
-  id: string; kind: 'row' | 'idea' | 'journal';
+  id: string; kind: 'row' | 'idea' | 'journal' | 'role';
   expert?: ExpertId; symbol: string; label: string;
   clue: string; cause?: string; action?: string; caseOrder?: number;
 }
@@ -77,7 +80,13 @@ export interface Hint {
  * 앞 사건의 연구 일지 카드('journal:j-c2d1').
  */
 export function hint(id: string): Hint | null {
-  const [source, key] = id.split(':');
+  const [source, key, line] = id.split(':');
+  // 역할 변신에서 배운 '이렇게 일해요' 줄('role:record:1')
+  if (source === 'role') {
+    const r = roleOf(key ?? '');
+    const text = r?.does[Number(line)];
+    return r && text ? {id, kind: 'role', symbol: '★', label: r.name, clue: text} : null;
+  }
   if (source === 'journal') {
     for (const c of scenario.cases) {
       const d = c.nodes.find((n): n is Decision => n.type === 'decision' && n.journal.id === key);
@@ -120,6 +129,8 @@ export function lastOutcome(s: MissionState, id: string) {
   if (!a) return null;
   return outcomeOf(s.caseId, decisionOf(s.caseId, id).choices.find(c => c.key === a.choice)!.outcome);
 }
+/** 사건에 앞장설 전문가(주도 전문가)를 골랐는지 */
+export const expertReady = (s: MissionState) => s.expertTries.includes(caseOf(s.caseId).lead);
 export const placeLeft = (s: MissionState, p: MissionPlace) => p.clues.filter(id => !s.solved.includes(id)).length;
 export const placeOpen = (s: MissionState, p: MissionPlace) => !p.after || s.closed.includes(p.after);
 /** 실습 결과 단서는 그 장소의 실습을 마쳐야 열린다 */
@@ -129,7 +140,7 @@ export const allClosed = (s: MissionState) => missionFor(s.caseId).decisions.eve
 export function initialMission(caseId = 'case1'): MissionState {
   missionFor(caseId);
   return {
-    version: 2, caseId, screen: 'incident', place: null, clue: null, decision: null,
+    version: 3, caseId, screen: 'incident', expertTries: [], place: null, clue: null, decision: null,
     opened: [], tries: {}, solved: [], attempts: {}, closed: [],
     draft: {choice: '', reason: ''}, delayedShown: false, labsDone: [], labWork: null,
   };
@@ -139,7 +150,7 @@ export function initialMission(caseId = 'case1'): MissionState {
 export function primary(s: MissionState): MissionAction | null {
   const m = missionFor(s.caseId);
   switch (s.screen) {
-    case 'incident': return {t: 'start'};
+    case 'incident': return expertReady(s) ? {t: 'start'} : null;
     case 'map': {
       if (allClosed(s)) return {t: 'history'};
       const gate = m.decisions.find(d => !s.closed.includes(d.id) && unlocked(s, d.id));
@@ -173,7 +184,19 @@ export function act(prev: MissionState, a: MissionAction): {state: MissionState;
   const go = (screen: Screen) => { s.screen = screen; };
 
   switch (a.t) {
-    case 'start': if (s.screen === 'incident') go('map'); break;
+    case 'pickExpert': {
+      if (s.screen !== 'incident' || expertReady(s) || !scenario.experts.some(e => e.id === a.id)) break;
+      s.expertTries.push(a.id);
+      const c = caseOf(s.caseId);
+      effect.correct = a.id === c.lead;
+      effect.support = c.support.includes(a.id as ExpertId);
+      break;
+    }
+    case 'start':
+      if (s.screen !== 'incident') break;
+      if (!expertReady(s)) { effect.message = 'needExpert'; break; }
+      go('map');
+      break;
     case 'map': s.place = null; s.clue = null; go('map'); break;
     case 'back':
       if (s.screen === 'clue' || s.screen === 'lab') { s.clue = null; go('place'); }
@@ -260,7 +283,9 @@ export function validMission(v: unknown): MissionState | null {
   if (!v || typeof v !== 'object') return null;
   const s = v as MissionState;
   const m = missions.find(x => x.caseId === s.caseId);
-  if (s.version !== 2 || !m || !SCREENS.includes(s.screen)) return null;
+  if (s.version !== 3 || !m || !SCREENS.includes(s.screen)) return null;
+  if (!Array.isArray(s.expertTries) || !s.expertTries.every(id => scenario.experts.some(e => e.id === id))) return null;
+  if (s.screen !== 'incident' && !expertReady(s)) return null;
   const clueIds = m.clues.map(c => c.id), decisionIds = m.decisions.map(d => d.id), placeIds = m.places.map(p => p.id);
   const ids = (x: unknown, allowed: string[]) => Array.isArray(x) && x.every(id => allowed.includes(id));
   const nullable = (x: unknown, allowed: string[]) => x === null || allowed.includes(x as string);

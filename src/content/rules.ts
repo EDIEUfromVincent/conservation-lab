@@ -141,15 +141,22 @@ export function validateContent(s: typeof source, m: typeof manualSource, l: typ
 
 /** 3D 미션(data/missions.json) 검사. 단서마다 정답 카드가 보기 안에 있고, 장소·결정 조건이 모두 실제 id를 가리켜야 한다. */
 export function validateMissions(
-  ms: {caseId: string; places: {id: string; slot: string; clues: string[]; lab?: string; after?: string}[]; clues: {id: string; options: string[]; answer: string; source?: string; text?: string}[]; decisions: {id: string; needs: string[]}[]}[],
+  ms: {caseId: string; places: {id: string; slot: string; clues: string[]; lab?: string; after?: string}[]; clues: {id: string; role: string; options: string[]; answer: string; source?: string; text?: string}[]; decisions: {id: string; needs: string[]}[]}[],
   s: typeof source, m: typeof manualSource,
+  roles: {id: string; does: string[]}[] = [],
 ) {
+  const ROLES = ['record', 'analyze', 'material', 'undo'];
   const errors: string[] = [];
   const E = (id: string, msg: string) => errors.push(`[${id}] ${msg}`);
   // 힌트 카드: 매뉴얼 표의 줄(metal:0), 꼭 기억해요(metal:k1), 앞 사건의 연구 일지(journal:j-c2d1)
   const hintExists = (id: string, order: number) => {
     if (id === 'none') return true;
     const [source, key = ''] = id.split(':');
+    if (source === 'role') {
+      // 역할 변신에서 배운 '이렇게 일해요' 줄: role:record:1
+      const [, roleId, line] = id.split(':');
+      return !!roles.find(r => r.id === roleId)?.does[Number(line)];
+    }
     if (source === 'journal') {
       const owner = s.cases.find(c => c.nodes.some(n => n.type === 'decision' && (n as Decision).journal.id === key));
       return !!owner && owner.order < order;
@@ -162,7 +169,10 @@ export function validateMissions(
     if (!c) { E('MISSION', `unknown case ${mission.caseId}`); continue; }
     const clueIds = mission.clues.map(x => x.id);
     if (new Set(clueIds).size !== clueIds.length) E('MISSION', `${c.id} duplicate clue`);
+    // 네 역할(기록·분석·재료·되돌리기)이 사건마다 모두 단서를 맡는다
+    for (const r of ROLES) if (!mission.clues.some(x => x.role === r)) E('MISSION', `${c.id} has no ${r} clue`);
     for (const clue of mission.clues) {
+      if (!ROLES.includes(clue.role)) E('MISSION', `${clue.id} role`);
       const inPlaces = mission.places.filter(p => p.clues.includes(clue.id)).length;
       if (inPlaces !== 1) E('MISSION', `${clue.id} must be in exactly one place`);
       if (!clue.options.includes(clue.answer)) E('MISSION', `${clue.id} answer not in options`);
@@ -195,5 +205,27 @@ export function validateMissions(
   const text = JSON.stringify(ms);
   if (/문화재|정답|오답|틀렸/.test(text)) E('V18', 'missions');
   if (/\bP[1-5]\b|원칙/.test(text)) E('N01', 'missions');
+  return errors;
+}
+
+/** 역할 변신(data/roles.json) 검사: 네 역할, 웹툰 4컷(그릴 수 있는 장면), 퀴즈 정답이 보기 안에 있는지 */
+export function validateRoles(
+  r: {roles: {id: string; name: string; does: string[]; webtoon: {scene: string; say: string; caption: string}[]; quiz: {q: string; options: string[]; answer: number; why: string}[]}[]},
+  sceneNames: string[],
+) {
+  const errors: string[] = [];
+  const E = (msg: string) => errors.push(`[ROLES] ${msg}`);
+  const ids = r.roles.map(x => x.id);
+  if (ids.join() !== 'record,analyze,material,undo') E(`roles ${ids.join()}`);
+  for (const role of r.roles) {
+    if (role.webtoon.length !== 4) E(`${role.id} webtoon length`);
+    for (const p of role.webtoon) if (!sceneNames.includes(p.scene) || !p.say || !p.caption) E(`${role.id} scene ${p.scene}`);
+    if (role.quiz.length < 2) E(`${role.id} quiz length`);
+    for (const q of role.quiz) if (!Number.isInteger(q.answer) || q.answer < 0 || q.answer >= q.options.length || !q.why) E(`${role.id} quiz ${q.q}`);
+    if (role.does.length < 3) E(`${role.id} does`);
+  }
+  const text = JSON.stringify(r);
+  if (/문화재|정답|오답|틀렸/.test(text)) E('prohibited words');
+  if (/\bP[1-5]\b|원칙/.test(text)) E('principle names');
   return errors;
 }

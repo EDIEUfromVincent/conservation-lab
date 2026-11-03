@@ -6,7 +6,8 @@ import {fitStage} from '../ui/stage';
 import {illustration} from '../ui/art';
 
 // 교사용 프로젝터 화면. 수업 순서:
-// ① 아침 영상(씨댄스) → ② 보존과학 영상 4편(유튜브, 새 탭) → ③ 전문가 4분야 한눈에 → ④ 3D 미션 사건 파일 1~5(?mode=mission)
+// ① 아침 영상(씨댄스) → ② 보존과학 영상 4편(유튜브, 새 탭) → ③ 전문가 4분야 한눈에
+// → ④ 역할 변신 갈래길(?mode=roles) → ⑤ 3D 미션 사건 파일 1~5(?mode=mission)
 // 매뉴얼·학습지 인쇄는 ?mode=print.
 
 const MORNING_KEY = 'cons-lab:morning';
@@ -27,11 +28,11 @@ export function mountTeacher(root: HTMLElement) {
       return [];
     }
   }
-  const toMissions = () => { location.search = '?mode=mission'; };
+  const toRoles = () => { location.search = '?mode=roles'; };
   const go = (next: Screen) => { screen = next; openExpert = null; render(); };
   const step = (dir: 1 | -1) => {
     const i = SCREENS.indexOf(screen) + dir;
-    if (i >= SCREENS.length) toMissions();
+    if (i >= SCREENS.length) toRoles();
     else if (i >= 0) go(SCREENS[i]);
   };
   const openClip = (url: string) => window.open(url, '_blank', 'noopener');
@@ -50,7 +51,7 @@ export function mountTeacher(root: HTMLElement) {
       el('div', {class: 'actions'}, el('a', {href: '?mode=print', target: '_blank', rel: 'noopener'}, L.printLink)),
       el('div', {class: 'actions'},
         screen !== 'start' ? button(L.prev, () => step(-1)) : null,
-        button(last ? L.toMissions + ' →' : L.next, () => step(1), {class: 'primary', 'data-testid': last ? 'to-missions' : 'next'}))));
+        button(last ? L.toRoles + ' →' : L.next, () => step(1), {class: 'primary', 'data-testid': last ? 'to-roles' : 'next'}))));
     if (openExpert) stage.append(expertDetail(openExpert));
     root.replaceChildren(stage);
     fitStage();
@@ -70,7 +71,7 @@ export function mountTeacher(root: HTMLElement) {
       el('p', {class: 'small strong'}, L.todayOrder),
       el('div', {class: 'step-links'}, ...L.steps.map((name, i) => i < 3
         ? button('', () => go(SCREENS[i + 1]), {class: 'step-link', 'data-step': i + 1})
-        : el('a', {href: '?mode=mission', class: 'step-link', 'data-step': i + 1}))),
+        : el('a', {href: i === 3 ? '?mode=roles' : '?mode=mission', class: 'step-link', 'data-step': i + 1}))),
       el('p', {class: 'small strong'}, L.missionCases),
       el('div', {class: 'case-links', 'data-testid': 'mission-cases'}, ...scenario.cases.map(c =>
         el('a', {href: `?mode=mission&case=${c.id}`, class: 'case-link', 'data-case': c.id},

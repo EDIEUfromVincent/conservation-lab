@@ -1,7 +1,8 @@
 import {test, expect, type Page} from '@playwright/test';
 import {mkdirSync} from 'node:fs';
 import {open} from './helpers';
-import {missions, missionFor, decisionOf} from '../../src/mission/engine';
+import {missions, missionFor, decisionOf, caseOf} from '../../src/mission/engine';
+import {scenario} from '../../src/content/loadContent';
 import {ML} from '../../src/mission/labels';
 import {L} from '../../src/ui/labels';
 
@@ -34,9 +35,21 @@ async function play(page: Page, caseId: string, choice: 'A' | 'B' | 'C', opts: {
     const s = (await screen(page))!;
     if (s === 'complete') break;
     await shot(s);
+    if (s === 'incident' && !(await page.locator('.ms-expert.right').count())) {
+      const lead = scenario.experts.findIndex(e => e.id === caseOf(caseId).lead);
+      if (opts.wrongFirst) {
+        await page.keyboard.press(LETTERS[(lead + 1) % 4]);
+        await expect(page.getByTestId('expert-feedback')).toBeVisible();
+        await shot('incident-wrong');
+      }
+      await page.keyboard.press(LETTERS[lead]);
+      await expect(page.locator('.ms-expert.right')).toHaveCount(1);
+      continue;
+    }
     if (s === 'clue' && !(await page.getByTestId('fact').count())) {
       const clueId = await page.locator('#stage').getAttribute('data-clue');
       const clue = m.clues.find(c => c.id === clueId)!;
+      await expect(page.locator('.ms-turn')).toHaveAttribute('data-role', clue.role);
       if (opts.wrongFirst) {
         const wrong = clue.options.findIndex(o => o !== clue.answer);
         await page.keyboard.press(LETTERS[wrong]);
@@ -94,6 +107,7 @@ for (const {caseId} of missions) {
 
 test('3D 미션: 결정은 단서를 풀기 전까지 잠겨 있고, 새로고침해도 이어진다', async ({page}) => {
   await fresh(page);
+  await page.keyboard.press('A');   // 사건 1은 금속 전문가(A)
   await page.keyboard.press('PageDown');
   await page.keyboard.press('5');
   await expect(page.locator('#stage')).toHaveAttribute('data-screen', 'map');
@@ -111,6 +125,7 @@ test('3D 미션: 결정은 단서를 풀기 전까지 잠겨 있고, 새로고�
 
 test('3D 미션: 방향키로 걸어가 E로 들어가고, 조이스틱으로도 걷는다', async ({page}) => {
   await fresh(page);
+  await page.keyboard.press('A');
   await page.keyboard.press('PageDown');
   await expect(page.getByTestId('joystick')).toBeVisible();
   // 방향키: 위로 걸어 여신상 앞에 서면 들어가기 알림이 뜬다

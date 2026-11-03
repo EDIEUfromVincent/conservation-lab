@@ -1,8 +1,9 @@
 import {describe, it, expect} from 'vitest';
 import {scenario, manuals} from '../../src/content/loadContent';
 import {validateMissions} from '../../src/content/rules';
+import {roles} from '../../src/roles/engine';
 import {
-  act, initialMission, primary, missions, missionFor, hint, facts, unlocked, validMission, lastOutcome, decisionOf, NONE,
+  act, initialMission, primary, missions, missionFor, hint, facts, unlocked, validMission, lastOutcome, decisionOf, caseOf, NONE,
   type MissionAction, type MissionState,
 } from '../../src/mission/engine';
 
@@ -12,7 +13,7 @@ const m = missionFor('case1');
 /** 클리커 '다음'과 맞는 카드·첫 사실만으로 끝까지 간다. 결정마다 key를 고르고, 없는 키면 A를 고른다. */
 function playThrough(key: 'A' | 'B' | 'C', caseId = 'case1') {
   const mission = missionFor(caseId);
-  let s = initialMission(caseId);
+  let s = run(initialMission(caseId), {t: 'pickExpert', id: caseOf(caseId).lead});
   for (let i = 0; i < 300 && s.screen !== 'complete'; i++) {
     if (s.screen === 'clue' && !s.solved.includes(s.clue!)) s = run(s, {t: 'answer', option: mission.clues.find(c => c.id === s.clue)!.answer});
     else if (s.screen === 'lab') s = run(s, {t: 'labDone'});
@@ -30,12 +31,12 @@ function playThrough(key: 'A' | 'B' | 'C', caseId = 'case1') {
 
 describe('3D 미션 데이터', () => {
   it('규칙 검사를 통과한다', () => {
-    expect(validateMissions(missions, scenario, manuals)).toEqual([]);
+    expect(validateMissions(missions, scenario, manuals, roles)).toEqual([]);
   });
   it('단서마다 보기 안에 상관없는 단서 카드가 있고, 힌트 카드는 매뉴얼 표의 실제 줄이다', () => {
     for (const c of m.clues) {
       expect(c.options).toContain(NONE);
-      for (const o of c.options.filter(o => o !== NONE)) expect(hint(o)).not.toBeNull();
+      for (const o of c.options.filter(o => o !== NONE)) expect(hint(o), o).not.toBeNull();
     }
   });
   it('잘못된 정답·없는 카드·장소 밖 단서를 잡는다', () => {
@@ -54,7 +55,7 @@ describe('3D 미션 데이터', () => {
 
 describe('3D 미션 진행', () => {
   it('결정은 필요한 사실을 모두 알아내기 전까지 잠겨 있다', () => {
-    let s = run(initialMission(), {t: 'start'});
+    let s = run(initialMission(), {t: 'pickExpert', id: 'metal'}, {t: 'start'});
     const tryOpen = act(s, {t: 'decision', id: 'c1d1'});
     expect(tryOpen.effect.message).toBe('locked');
     expect(tryOpen.state.screen).toBe('map');
@@ -64,7 +65,7 @@ describe('3D 미션 진행', () => {
   });
 
   it('다른 카드를 고르면 풀리지 않고, 고른 순서가 남는다', () => {
-    let s = run(initialMission(), {t: 'start'}, {t: 'place', id: 'outside'}, {t: 'open', id: 'c1-green'});
+    let s = run(initialMission(), {t: 'pickExpert', id: 'metal'}, {t: 'start'}, {t: 'place', id: 'outside'}, {t: 'open', id: 'c1-green'});
     const wrong = act(s, {t: 'answer', option: 'metal:2'});
     expect(wrong.effect.correct).toBe(false);
     expect(primary(wrong.state)).toBeNull();
@@ -74,13 +75,13 @@ describe('3D 미션 진행', () => {
   });
 
   it('상관없는 단서는 풀어도 근거 사실로 쓰지 않는다', () => {
-    const s = run(initialMission(), {t: 'start'}, {t: 'place', id: 'outside'}, {t: 'open', id: 'c1-sign'}, {t: 'answer', option: NONE});
+    const s = run(initialMission(), {t: 'pickExpert', id: 'metal'}, {t: 'start'}, {t: 'place', id: 'outside'}, {t: 'open', id: 'c1-sign'}, {t: 'answer', option: NONE});
     expect(s.solved).toEqual(['c1-sign']);
     expect(facts(s)).toEqual([]);
   });
 
   it('실습을 마치기 전에는 실습 결과 단서를 열 수 없다', () => {
-    let s = run(initialMission(), {t: 'start'}, {t: 'place', id: 'lab'});
+    let s = run(initialMission(), {t: 'pickExpert', id: 'metal'}, {t: 'start'}, {t: 'place', id: 'lab'});
     expect(primary(s)).toEqual({t: 'lab'});
     expect(run(s, {t: 'open', id: 'c1-lab'}).screen).toBe('place');
     s = run(s, {t: 'lab'}, {t: 'labDone'});
@@ -89,7 +90,7 @@ describe('3D 미션 진행', () => {
   });
 
   it('근거 사실 없이 결정할 수 없다', () => {
-    let s = run(initialMission(), {t: 'start'}, {t: 'place', id: 'outside'}, {t: 'open', id: 'c1-green'}, {t: 'answer', option: 'metal:1'},
+    let s = run(initialMission(), {t: 'pickExpert', id: 'metal'}, {t: 'start'}, {t: 'place', id: 'outside'}, {t: 'open', id: 'c1-green'}, {t: 'answer', option: 'metal:1'},
       {t: 'map'}, {t: 'decision', id: 'c1d1'}, {t: 'choose', key: 'B'});
     expect(act(s, {t: 'commit'}).effect.message).toBe('needReason');
     s = run(s, {t: 'reason', id: 'c1-sign'});
@@ -99,7 +100,7 @@ describe('3D 미션 진행', () => {
   it('나빠진 결과는 시간을 빨리 감은 뒤 다시 고를 수 있다', () => {
     let s = playThrough('B');
     expect(s.screen).toBe('complete');
-    s = run(initialMission(), {t: 'start'});
+    s = run(initialMission(), {t: 'pickExpert', id: 'metal'}, {t: 'start'});
     for (const [place, clue, card] of [['inside', 'c1-rust', 'metal:0'], ['inside', 'c1-contact', 'metal:3']])
       s = run(s, {t: 'place', id: place}, {t: 'open', id: clue}, {t: 'answer', option: card});
     s = run(s, {t: 'place', id: 'lab'}, {t: 'lab'}, {t: 'labDone'}, {t: 'answer', option: 'metal:3'},
@@ -128,7 +129,7 @@ describe('3D 미션 진행', () => {
   });
 
   it('앞 결정을 마쳐야 열리는 장소가 있다(사건 3 수염 이음매)', () => {
-    let s = run(initialMission('case3'), {t: 'start'});
+    let s = run(initialMission('case3'), {t: 'pickExpert', id: 'adhesive'}, {t: 'start'});
     const tryGo = act(s, {t: 'place', id: 'joint'});
     expect(tryGo.effect.message).toBe('placeLocked');
     s = run(s, {t: 'place', id: 'showcase'}, {t: 'open', id: 'c3-beard'}, {t: 'answer', option: 'journal:j-c2d1'},
@@ -146,10 +147,41 @@ describe('3D 미션 진행', () => {
   });
 });
 
+describe('사건 발생: 전문가 보내기', () => {
+  it('주도 전문가를 골라야 조사를 시작하고, 함께 일할 전문가와 다른 전문가는 알려 준다', () => {
+    let s = initialMission('case1');
+    expect(primary(s)).toBeNull();
+    expect(act(s, {t: 'start'}).effect.message).toBe('needExpert');
+    const support = act(s, {t: 'pickExpert', id: 'adhesive'});
+    expect(support.effect).toMatchObject({correct: false, support: true});
+    const other = act(support.state, {t: 'pickExpert', id: 'glass'});
+    expect(other.effect).toMatchObject({correct: false, support: false});
+    s = run(other.state, {t: 'pickExpert', id: 'metal'});
+    expect(s.expertTries).toEqual(['adhesive', 'glass', 'metal']);
+    expect(primary(s)).toEqual({t: 'start'});
+  });
+});
+
+describe('네 역할', () => {
+  it.each(missions.map(x => x.caseId))('%s: 기록·분석·재료·되돌리기 단서가 모두 있다', caseId => {
+    expect(new Set(missionFor(caseId).clues.map(c => c.role))).toEqual(new Set(['record', 'analyze', 'material', 'undo']));
+  });
+  it('역할 변신에서 배운 줄도 힌트 카드가 된다', () => {
+    expect(hint('role:record:1')).toMatchObject({kind: 'role', label: '기록'});
+    expect(hint('role:record:9')).toBeNull();
+  });
+  it('역할이 빠진 사건을 잡는다', () => {
+    const broken = structuredClone(missions);
+    broken[0].clues.forEach(c => { if (c.role === 'undo') c.role = 'record'; });
+    expect(validateMissions(broken, scenario, manuals).join()).toMatch(/case1 has no undo clue/);
+  });
+});
+
 describe('3D 미션 저장 기록', () => {
   it('진행 중 기록은 그대로 읽고, 어긋난 기록은 버린다', () => {
-    const s = run(initialMission(), {t: 'start'}, {t: 'place', id: 'outside'}, {t: 'open', id: 'c1-green'});
+    const s = run(initialMission(), {t: 'pickExpert', id: 'metal'}, {t: 'start'}, {t: 'place', id: 'outside'}, {t: 'open', id: 'c1-green'});
     expect(validMission(JSON.parse(JSON.stringify(s)))).toEqual(s);
+    expect(validMission({...s, expertTries: []})).toBeNull();
     expect(validMission({...s, screen: 'boss'})).toBeNull();
     expect(validMission({...s, solved: ['c9']})).toBeNull();
     expect(validMission({...s, clue: null})).toBeNull();

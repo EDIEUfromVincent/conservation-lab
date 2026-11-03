@@ -4,7 +4,7 @@ import * as THREE from 'three';
 // 네 자리(main·detail·archive·lab)에 사건별 모형을 세우고, 연구원은 조이스틱·방향키로 걷거나 장소를 고르면 걸어간다.
 
 export type Slot = 'main' | 'detail' | 'archive' | 'lab';
-export interface ScenePlace {id: string; slot: Slot; name: string}
+export interface ScenePlace {id: string; slot: Slot; name: string; color?: string}
 export interface MarkerState {left: number; done: boolean; active: boolean; locked: boolean}
 export interface SceneHandle {
   ok: boolean;
@@ -14,6 +14,8 @@ export interface SceneHandle {
   setInput(x: number, y: number): void;
   /** 패널이 가리는 쪽에 맞춰 장면 중심을 옮긴다(화면 비율) */
   setShift(x: number, y: number): void;
+  /** 역할 변신: 연구원 옷 색을 바꾸고 한 바퀴 돈다 */
+  setOutfit(color: string, spin?: boolean): void;
   dispose(): void;
 }
 type V3 = [number, number, number];
@@ -40,7 +42,7 @@ const C = {
 interface SetSpec {
   sky: number; ground: 'island' | 'hall' | 'plaza' | 'field';
   mainLook: number; markers: Partial<Record<Slot, number>>;
-  build: (b: Builder) => void;
+  build: (b: Builder, places: ScenePlace[]) => void;
 }
 
 export function mountScene(host: HTMLElement, caseId: string, places: ScenePlace[], onNear: (placeId: string | null) => void): SceneHandle {
@@ -49,7 +51,7 @@ export function mountScene(host: HTMLElement, caseId: string, places: ScenePlace
     renderer = new THREE.WebGLRenderer({antialias: true, powerPreference: 'high-performance'});
     if (!renderer.getContext()) throw new Error('no context');
   } catch {
-    return {ok: false, goTo: () => {}, mark: () => {}, setInput: () => {}, setShift: () => {}, dispose: () => {}};
+    return {ok: false, goTo: () => {}, mark: () => {}, setInput: () => {}, setShift: () => {}, setOutfit: () => {}, dispose: () => {}};
   }
   const spec = SETS[caseId] ?? SETS.case1;
   renderer.setPixelRatio(Math.min(devicePixelRatio, 1.25));
@@ -72,17 +74,21 @@ export function mountScene(host: HTMLElement, caseId: string, places: ScenePlace
 
   const b = new Builder(scene);
   buildGround(b, spec.ground);
-  spec.build(b);
+  spec.build(b, places);
 
   // ── 연구원 ──
   const avatar = new THREE.Group();
   const legs: THREE.Mesh[] = [];
-  b.box(avatar, [0, 1.05, 0], [0.7, 0.9, 0.42], C.suit);
+  // 옷은 따로 만든 재질이라 변신할 때 색만 바꾼다
+  const suit = b.mat(C.suit, {roughness: 0.84});
+  const suitParts = [b.box(avatar, [0, 1.05, 0], [0.7, 0.9, 0.42], C.suit)];
   b.box(avatar, [0, 1.8, 0], [0.56, 0.56, 0.5], C.skin);
   b.box(avatar, [0, 2.12, -0.03], [0.6, 0.18, 0.56], C.hair);
   b.box(avatar, [0, 1.12, 0.22], [0.5, 0.5, 0.04], 0xf7f3e8);
   for (const x of [-0.18, 0.18]) legs.push(b.box(avatar, [x, 0.33, 0], [0.24, 0.66, 0.26], 0x2d3a3a));
-  for (const x of [-0.5, 0.5]) b.box(avatar, [x, 1.1, 0], [0.2, 0.75, 0.25], C.suit);
+  for (const x of [-0.5, 0.5]) suitParts.push(b.box(avatar, [x, 1.1, 0], [0.2, 0.75, 0.25], C.suit));
+  for (const part of suitParts) part.material = suit;
+  let spinUntil = 0;
   avatar.position.set(START[0], 0, START[1]);
   scene.add(avatar);
 
@@ -202,6 +208,11 @@ export function mountScene(host: HTMLElement, caseId: string, places: ScenePlace
     camera.position.copy(camPos);
     camera.lookAt(camLook);
     b.animate(t);
+    if (t < spinUntil) {
+      const k = 1 - (spinUntil - t);   // 0 → 1
+      avatar.rotation.y += dt * 9;
+      avatar.scale.setScalar(1 + Math.sin(k * Math.PI) * 0.35);
+    } else avatar.scale.setScalar(1);
     for (const m of markers.values()) m.sprite.position.y = m.base + Math.sin(t * 2) * 0.15;
     renderer.render(scene, camera);
   }
@@ -228,6 +239,10 @@ export function mountScene(host: HTMLElement, caseId: string, places: ScenePlace
       (m.sprite.material.map as THREE.Texture).needsUpdate = true;
     },
     setInput(x, y) { input.set(x, y); },
+    setOutfit(color, spin = false) {
+      suit.color.set(color);
+      if (spin) spinUntil = clock.elapsedTime + 1;
+    },
     setShift(x, y) {
       if (x === shift.x && y === shift.y) return;
       shift = {x, y};
@@ -391,6 +406,22 @@ function workTable(b: Builder, g: THREE.Object3D, w: number, d: number) {
 
 // ── 사건별 무대 ──
 const SETS: Record<string, SetSpec> = {
+  roles: {
+    sky: 0xcfe6ee, ground: 'field', mainLook: 2.6, markers: {main: 6.4, detail: 6.4, archive: 6.4, lab: 6.4},
+    build(b, places) {
+      // 네 갈래길 끝마다 역할 문: 기둥 두 개 + 역할 색 깃발
+      for (const p of places) {
+        const g = b.group(p.slot);
+        const color = new THREE.Color(p.color ?? '#888888').getHex();
+        for (const x of [-1.6, 1.6]) b.box(g, [x, 1.6, 0], [0.5, 3.2, 0.5], 0xe9e1cf);
+        b.box(g, [0, 3.4, 0], [4.0, 0.5, 0.7], color);
+        b.box(g, [0, 2.6, 0.05], [2.4, 0.9, 0.12], color, {emissive: color, emissiveIntensity: 0.25});
+        b.box(g, [0, 0.05, 1.2], [2.4, 0.1, 2.0], 0xd9c79b);
+      }
+      for (const [x, z, w, d, r] of [[0, 4, 2.2, 14, 0], [-4.8, 4.2, 2.2, 10, -0.9], [4.2, 2.2, 2.2, 9.5, 0.9], [4.5, 8.2, 2.2, 8.6, 1.25]])
+        b.box(b.scene, [x, 0.13, z], [w, 0.06, d], 0xe3d1a2).rotation.y = r;
+    },
+  },
   case1: {
     sky: 0xbfe3ef, ground: 'island', mainLook: 6.5, markers: {main: 12.8, archive: 5.6},
     build(b) {
