@@ -17,7 +17,7 @@ export const PHASE_ORDER: Phase[] = [
   'JOURNAL', 'ALGORITHM', 'REQUEST', 'BUILD', 'TEST', 'DEBUG', 'AI_CHECK', 'REFLECT', 'WRAPUP',
 ];
 /** 단계 안의 하위 화면 수. next()가 마지막 하위 화면에서 다음 단계로 간다. */
-const SUB_SCREENS: Partial<Record<Phase, number>> = {VIDEO: 2, ALGORITHM: 2, AI_CHECK: 3};
+const SUB_SCREENS: Partial<Record<Phase, number>> = {ALGORITHM: 2, AI_CHECK: 3};
 
 export function emptyChoice(key: ChoiceKey): ProgramChoice {
   return {key, label: '', result: '', why: '', stepId: ''};

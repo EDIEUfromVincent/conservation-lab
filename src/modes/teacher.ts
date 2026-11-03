@@ -129,17 +129,15 @@ export function mountTeacher(root: HTMLElement) {
     title(scenario.meta.title, scenario.meta.subtitle);
     main.append(el('div', {class: 'split'}, illustration('case5'), el('div', {class: 'lines'},
       el('p', {}, scenario.meta.audience),
-      el('div', {class: 'actions'}, ...(['120', '80'] as const).map(p =>
-        button(scenario.profiles[p].label, () => dispatch({type: 'profile', value: p}), {'aria-pressed': s.profile === p, 'data-testid': 'profile-' + p}))),
-      el('div', {class: 'settings'},
-        checkbox(L.optional, s.settings.skipOptional, () => dispatch({type: 'setting', key: 'skipOptional', value: !s.settings.skipOptional})),
-        checkbox(L.quick, s.settings.quickLabs, () => dispatch({type: 'setting', key: 'quickLabs', value: !s.settings.quickLabs})),
-        field(L.baseUrl, s.settings.manualBaseUrl, value => dispatch({type: 'setting', key: 'manualBaseUrl', value})),
-        field(L.videoUrl, s.settings.videoUrl, value => dispatch({type: 'setting', key: 'videoUrl', value}))),
       el('p', {class: 'small'}, L.privacy),
       el('div', {class: 'actions'},
-        button(L.start, () => dispatch({type: 'next'}), {class: 'primary', 'data-testid': 'start'}),
-        el('a', {href: '?mode=mission', class: 'mission-link', 'data-testid': 'mission-link'}, L.missionLink),
+        button(L.start, () => dispatch({type: 'next'}), {class: 'primary', 'data-testid': 'start'})),
+      // 3D 미션: 사건 파일 1~5로 바로 간다
+      el('p', {class: 'small strong'}, L.missionCases),
+      el('div', {class: 'case-links', 'data-testid': 'mission-cases'}, ...scenario.cases.map(c =>
+        el('a', {href: `?mode=mission&case=${c.id}`, class: 'case-link', 'data-case': c.id},
+          el('span', {class: 'case-no'}, c.order), el('span', {}, c.title)))),
+      el('div', {class: 'actions'},
         el('label', {class: 'field small'}, L.import,
           el('input', {type: 'file', accept: '.json,application/json', onchange: (e: Event) => void restore((e.target as HTMLInputElement).files?.[0])}))))));
   }

@@ -14,7 +14,6 @@ export async function snapshotState(page: Page) {
 export const stored = (page: Page) => page.evaluate(() => JSON.parse(localStorage.getItem('cons-lab:current')!));
 
 export interface PlayOptions {
-  profile?: '80' | '120';
   actualLabs?: boolean;
   retry?: boolean;
   stop?: string;
@@ -32,12 +31,11 @@ export async function step(page: Page, pattern: string[], opts: PlayOptions = {}
     await page.keyboard.press('Enter');
     return true;
   }
-  if (s.phase === 'SETUP') {
-    if (opts.profile === '80') {
-      await page.getByTestId('profile-80').focus();
-      await page.keyboard.press('Space');
-    }
-    if (opts.allDecisions) await page.getByLabel(L.optional).uncheck();
+  if (s.phase === 'SETUP' && opts.allDecisions) {
+    // 선택적 결정까지 모두: 교사 도구(T)에서만 바꿀 수 있다
+    await page.keyboard.press('t');
+    await page.getByLabel(L.optional).uncheck();
+    await page.keyboard.press('t');
   }
   if (s.phase === 'TEAM_SETUP') await chooseTeamHeritage(page);
   if (s.kind === 'predict') {

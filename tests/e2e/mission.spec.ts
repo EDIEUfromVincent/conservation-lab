@@ -186,8 +186,8 @@ for (const size of [{width: 1920, height: 1080}, {width: 1280, height: 720}]) {
   });
 }
 
-test('수업 앱 시작 화면에서 3D 미션 사건 목록으로 갈 수 있다', async ({page}) => {
+test('수업 앱 시작 화면의 사건 카드로 3D 미션을 바로 연다', async ({page}) => {
   await open(page);
-  await page.getByTestId('mission-link').click();
-  await expect(page.locator('#stage')).toHaveAttribute('data-screen', 'hub');
+  await page.locator('[data-testid=mission-cases] [data-case="case1"]').click();
+  await expect(page.locator('#stage')).toHaveAttribute('data-screen', /incident|map|place|clue|lab|decision|outcome|history|complete/);
 });

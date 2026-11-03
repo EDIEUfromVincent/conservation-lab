@@ -31,20 +31,15 @@ export function introScreen({s, main, title}: Ctx) {
   );
 }
 
-/** S02: 55초 영상 두 번 보기(1회차 자막 없음, 2회차 질문 자막) + 아침 메모(docs/12 §4.1) */
+/** S02: 55초 영상 + 아침 메모 */
 export function videoScreen({s, main, title, dispatch}: Ctx) {
   const v = scenario.video;
   title(v.title, scenario.story.labName);
-  const second = s.subScreen === 1;
-  const file = second ? v.localFile : v.localFilePlain || v.localFile;
   const player = el('div', {class: 'video-box'});
-  if (file) {
-    const video = el('video', {src: file, controls: true, preload: 'metadata', 'data-viewing': second ? 2 : 1});
-    // 자막 없는 판이 없으면 자막 판으로, 그것도 없으면 안내 + 주소 버튼
-    video.addEventListener('error', () => {
-      if (!second && v.localFilePlain && video.getAttribute('src') !== v.localFile) video.src = v.localFile;
-      else player.replaceChildren(el('p', {class: 'small'}, L.noLocalVideo), urlButton());
-    });
+  if (v.localFile) {
+    const video = el('video', {src: v.localFile, controls: true, preload: 'metadata'});
+    // 영상 파일이 없으면 안내 + (주소가 있으면) 주소 버튼
+    video.addEventListener('error', () => player.replaceChildren(el('p', {class: 'small'}, L.noLocalVideo), urlButton()));
     player.append(video);
   } else player.append(urlButton());
   function urlButton() {
@@ -62,7 +57,6 @@ export function videoScreen({s, main, title, dispatch}: Ctx) {
     ...v.watchFor.map((q, i) => field(q, s.morningNotes[i] ?? '', text => dispatch({type: 'morningNote', key: String(i), value: text}, {render: false}))));
   add(main, 
     mentorFor(s),
-    el('p', {class: 'viewing', 'data-testid': 'viewing'}, v.viewings[second ? 1 : 0]),
     el('div', {class: 'split video-split'}, player, notes),
     el('p', {class: 'small'}, v.source),
   );

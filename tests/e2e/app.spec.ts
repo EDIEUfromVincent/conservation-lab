@@ -74,37 +74,28 @@ test('학생 화면에는 S21 비교 전까지 원칙 이름이 나오지 않는
   await expect(page.locator('.journal-principle').first()).toBeVisible();
 });
 
-test('80분: 점심시간 뒤 이어하기, 실제 실습, 선택 결정 건너뛰기', async ({page}) => {
-  test.setTimeout(240000);
-  await open(page);
-  await play(page, ['B', 'B', 'B', 'B'], {profile: '80', actualLabs: true, stop: 'BREAK'});
-  await expect(page.locator('#stage')).toHaveAttribute('data-screen', 'SBR');
-  expect((await stored(page)).state.caseIndex).toBe(2);
-  await page.reload();
-  await page.getByRole('dialog').getByRole('button', {name: L.resume, exact: true}).click();
-  await expect(page.locator('#stage')).toHaveAttribute('data-screen', 'SBR');
-  await page.keyboard.press('PageDown');
-  await play(page, ['B', 'B', 'B', 'B'], {actualLabs: true});
-  const session = await stored(page);
-  expect(session.state.skippedDecisions.sort()).toEqual(['c2d1', 'c3d3', 'c4d2']);
-  expect(Object.keys(session.state.labResults)).toHaveLength(6);
-  expect(session.state.journal).toHaveLength(11);
+test('누른 버튼은 눌린 모양으로 바뀐다(aria-pressed="true")', async ({page}) => {
+  await open(page, '?mode=manual&expert=metal');
+  const options = page.locator('[data-quiz="0"] .quiz-options button');
+  await options.nth(0).click();
+  await expect(options.nth(0)).toHaveAttribute('aria-pressed', 'true');
+  await expect(options.nth(1)).toHaveAttribute('aria-pressed', 'false');
+  const look = (n: number) => options.nth(n).evaluate(e => getComputedStyle(e).backgroundColor);
+  expect(await look(0)).not.toEqual(await look(1));
 });
 
-test('누른 버튼은 눌린 모양으로 바뀐다(aria-pressed="true")', async ({page}) => {
+test('시작 화면에는 설정 없이 수업 시작과 사건 파일 1~5만 있다', async ({page}) => {
   await open(page);
-  const p80 = page.getByTestId('profile-80');
-  await p80.click();
-  await expect(p80).toHaveAttribute('aria-pressed', 'true');
-  await expect(page.getByTestId('profile-120')).toHaveAttribute('aria-pressed', 'false');
-  const look = (id: string) => page.getByTestId(id).evaluate(e => getComputedStyle(e).backgroundColor);
-  expect(await look('profile-80')).not.toEqual(await look('profile-120'));
+  await expect(page.locator('#stage input[type=checkbox]')).toHaveCount(0);
+  await expect(page.getByTestId('mission-cases').locator('a')).toHaveCount(5);
+  await page.locator('[data-case="case3"]').click();
+  await expect(page).toHaveURL(/mode=mission&case=case3/);
 });
 
 test('S03 의뢰 후보 카드에 사건 그림을 쓰지 않고, 손든 수를 센다', async ({page}) => {
   await open(page);
-  // 시작 → 출근 → 영상 1회차 → 영상 2회차 → 의뢰 고르기
-  for (let i = 0; i < 4; i++) await page.keyboard.press('PageDown');
+  // 시작 → 출근 → 영상 → 의뢰 고르기
+  for (let i = 0; i < 3; i++) await page.keyboard.press('PageDown');
   await expect(page.locator('#stage')).toHaveAttribute('data-screen', 'S03');
   await expect(page.locator('.heritage svg')).toHaveCount(0);
   const first = scenario.heritagePick.examples[0];
