@@ -15,6 +15,7 @@
    - `?mode=teacher` (기본) — 프로젝터용 수업 진행 화면
    - `?mode=manual&expert=metal|glass|paint|adhesive` — 학생 기기용 전문가 매뉴얼 + 미니 퀴즈
    - `?mode=print` — 매뉴얼·학습지 인쇄용(학생 기기가 없을 때)
+   - `?mode=mission` — 3D 미션(사건 목록 → `&case=case1~5`). 사건 → 장소(조이스틱으로 걷기) → 단서 → 매뉴얼·연구 일지 카드로 풀기 → 결정. 데이터는 `data/missions.json`
    - `?mode=team&team=1..4` — (P2, 선택) 팀 기기용 실습 샌드박스. 교사 화면과 동기화하지 않는다.
 4. **AI 호출 금지**: API 키를 넣지 않는다. 'AI 조수 점검' 화면은 교사가 수업 전에 실제 생성형 AI에서 캡처해 넣은 텍스트(`data/scenario.json` → `aiCheck.capturedAnswers`, 또는 교사 패널에서 붙여넣기)만 보여준다.
 5. **개인정보 저장 금지**: 학생 이름을 입력받지 않는다. 팀 번호(1~4)와 전문 분야만 기록한다.

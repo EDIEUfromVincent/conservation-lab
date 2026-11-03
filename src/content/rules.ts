@@ -138,3 +138,62 @@ export function validateContent(s: typeof source, m: typeof manualSource, l: typ
   walk(m, 'manuals');
   return {errors, warnings};
 }
+
+/** 3D 미션(data/missions.json) 검사. 단서마다 정답 카드가 보기 안에 있고, 장소·결정 조건이 모두 실제 id를 가리켜야 한다. */
+export function validateMissions(
+  ms: {caseId: string; places: {id: string; slot: string; clues: string[]; lab?: string; after?: string}[]; clues: {id: string; options: string[]; answer: string; source?: string; text?: string}[]; decisions: {id: string; needs: string[]}[]}[],
+  s: typeof source, m: typeof manualSource,
+) {
+  const errors: string[] = [];
+  const E = (id: string, msg: string) => errors.push(`[${id}] ${msg}`);
+  // 힌트 카드: 매뉴얼 표의 줄(metal:0), 꼭 기억해요(metal:k1), 앞 사건의 연구 일지(journal:j-c2d1)
+  const hintExists = (id: string, order: number) => {
+    if (id === 'none') return true;
+    const [source, key = ''] = id.split(':');
+    if (source === 'journal') {
+      const owner = s.cases.find(c => c.nodes.some(n => n.type === 'decision' && (n as Decision).journal.id === key));
+      return !!owner && owner.order < order;
+    }
+    const doc = m.manuals.find(x => x.id === source);
+    return key.startsWith('k') ? !!doc?.keyIdeas[Number(key.slice(1))] : !!doc?.clues[Number(key)];
+  };
+  for (const mission of ms) {
+    const c = s.cases.find(x => x.id === mission.caseId);
+    if (!c) { E('MISSION', `unknown case ${mission.caseId}`); continue; }
+    const clueIds = mission.clues.map(x => x.id);
+    if (new Set(clueIds).size !== clueIds.length) E('MISSION', `${c.id} duplicate clue`);
+    for (const clue of mission.clues) {
+      const inPlaces = mission.places.filter(p => p.clues.includes(clue.id)).length;
+      if (inPlaces !== 1) E('MISSION', `${clue.id} must be in exactly one place`);
+      if (!clue.options.includes(clue.answer)) E('MISSION', `${clue.id} answer not in options`);
+      if (new Set(clue.options).size !== clue.options.length || clue.options.length < 3 || clue.options.length > 4) E('MISSION', `${clue.id} options`);
+      for (const o of clue.options) if (!hintExists(o, c.order)) E('MISSION', `${clue.id} unknown hint ${o}`);
+      const home = mission.places.find(p => p.clues.includes(clue.id));
+      if (clue.source === 'lab' ? !c.lab || !home?.lab : !clue.text) E('MISSION', `${clue.id} text`);
+    }
+    const decisionIds = c.nodes.filter((n): n is Decision => n.type === 'decision').map(n => n.id);
+    for (const p of mission.places) {
+      for (const id of p.clues) if (!clueIds.includes(id)) E('MISSION', `${p.id} unknown clue ${id}`);
+      if (!['main', 'detail', 'archive', 'lab'].includes(p.slot) || mission.places.filter(x => x.slot === p.slot).length > 1) E('MISSION', `${p.id} slot`);
+      if (p.lab && (!c.lab || !['main', 'A', 'B'].includes(p.lab))) E('MISSION', `${p.id} lab`);
+      if (p.after && !decisionIds.includes(p.after)) E('MISSION', `${p.id} after ${p.after}`);
+    }
+    for (const d of mission.decisions) {
+      if (!decisionIds.includes(d.id)) E('MISSION', `${c.id} unknown decision ${d.id}`);
+      for (const id of d.needs) {
+        const clue = mission.clues.find(x => x.id === id);
+        if (!clue || clue.answer === 'none') E('MISSION', `${d.id} needs ${id}`);
+      }
+    }
+    // 단서가 하나라도 있어야 결정이 열리고, 사건의 필수 결정은 모두 미션에 있어야 한다
+    for (const id of decisionIds) {
+      const node = c.nodes.find(n => n.id === id) as Decision;
+      if (!node.optional && !mission.decisions.some(d => d.id === id)) E('MISSION', `${c.id} missing decision ${id}`);
+    }
+  }
+  // 학생 화면 문구 금지어·원칙 노출
+  const text = JSON.stringify(ms);
+  if (/문화재|정답|오답|틀렸/.test(text)) E('V18', 'missions');
+  if (/\bP[1-5]\b|원칙/.test(text)) E('N01', 'missions');
+  return errors;
+}

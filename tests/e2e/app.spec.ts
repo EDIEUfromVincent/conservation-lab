@@ -91,6 +91,16 @@ test('80분: 점심시간 뒤 이어하기, 실제 실습, 선택 결정 건너�
   expect(session.state.journal).toHaveLength(11);
 });
 
+test('누른 버튼은 눌린 모양으로 바뀐다(aria-pressed="true")', async ({page}) => {
+  await open(page);
+  const p80 = page.getByTestId('profile-80');
+  await p80.click();
+  await expect(p80).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.getByTestId('profile-120')).toHaveAttribute('aria-pressed', 'false');
+  const look = (id: string) => page.getByTestId(id).evaluate(e => getComputedStyle(e).backgroundColor);
+  expect(await look('profile-80')).not.toEqual(await look('profile-120'));
+});
+
 test('S03 의뢰 후보 카드에 사건 그림을 쓰지 않고, 손든 수를 센다', async ({page}) => {
   await open(page);
   // 시작 → 출근 → 영상 1회차 → 영상 2회차 → 의뢰 고르기

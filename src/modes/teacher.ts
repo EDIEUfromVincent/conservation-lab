@@ -139,6 +139,7 @@ export function mountTeacher(root: HTMLElement) {
       el('p', {class: 'small'}, L.privacy),
       el('div', {class: 'actions'},
         button(L.start, () => dispatch({type: 'next'}), {class: 'primary', 'data-testid': 'start'}),
+        el('a', {href: '?mode=mission', class: 'mission-link', 'data-testid': 'mission-link'}, L.missionLink),
         el('label', {class: 'field small'}, L.import,
           el('input', {type: 'file', accept: '.json,application/json', onchange: (e: Event) => void restore((e.target as HTMLInputElement).files?.[0])}))))));
   }

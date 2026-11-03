@@ -197,3 +197,5 @@ button.card.heritage.chosen{border-width:4px}
 .choice-form{grid-template-columns:1fr 430px}
 .result-buttons button{white-space:nowrap;font-size:20px;padding:4px 10px}
 .wrapup .card p{font-size:24px}
+
+.mission-link{display:inline-flex;align-items:center;min-height:64px;padding:0 26px;border:3px solid var(--ink);border-radius:14px;background:#f2b632;color:var(--ink);font-weight:800;text-decoration:none;box-shadow:0 5px 0 var(--ink)}
