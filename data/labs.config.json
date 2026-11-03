@@ -1,0 +1,254 @@
+{
+  "_note": "모든 값은 설명용 근사값이다. 실제 물리 상수가 아니다. 단위 테스트는 값 자체보다 순서·불변식을 검사한다.",
+  "lab1": {
+    "title": "두 금속이 맞닿으면?",
+    "tauDays": 2.0,
+    "maxDays": 3,
+    "imaginedDays": 365,
+    "conditions": [
+      {
+        "id": "bare",
+        "label": "쇠못만",
+        "k": 0.5
+      },
+      {
+        "id": "copper",
+        "label": "쇠못 + 구리선",
+        "k": 1.0
+      },
+      {
+        "id": "insulated",
+        "label": "쇠못과 구리선 사이에 테이프",
+        "k": 0.5
+      },
+      {
+        "id": "stainless",
+        "label": "새 뼈대: 녹슬지 않는 금속 + 막",
+        "k": 0.03,
+        "bonus": true
+      }
+    ],
+    "quick": {
+      "slider": false,
+      "showDays": [
+        3
+      ]
+    }
+  },
+  "lab2": {
+    "title": "붙이기 전에 기록하라",
+    "pieces": 10,
+    "chips": 2,
+    "snapTolerancePx": 24,
+    "round1Seconds": 60,
+    "round2Seconds": 90,
+    "rotation": false,
+    "quick": {
+      "pieces": 6,
+      "round1Seconds": 40,
+      "autoLabel": true
+    }
+  },
+  "lab3": {
+    "title": "되돌릴 수 있는 접착제 찾기",
+    "pxPerStroke": 120,
+    "baseProgressPerStroke": 0.15,
+    "scratchRate": 0.5,
+    "daysPerStroke": 0.7,
+    "warmMultiplier": 2.6,
+    "surface": {
+      "id": "gold",
+      "label": "금 표면",
+      "hardness": 0.35
+    },
+    "adhesives": [
+      {
+        "id": "beeswax",
+        "label": "밀랍",
+        "reversibility": 0.9,
+        "residue": 0.2,
+        "warmSensitive": true
+      },
+      {
+        "id": "wheatPaste",
+        "label": "밀가루 풀",
+        "reversibility": 0.85,
+        "residue": 0.1,
+        "warmSensitive": false
+      },
+      {
+        "id": "tape",
+        "label": "투명 테이프",
+        "reversibility": 0.6,
+        "residue": 0.5,
+        "warmSensitive": false
+      },
+      {
+        "id": "epoxy",
+        "label": "강력 접착제(에폭시)",
+        "reversibility": 0.064,
+        "residue": 0.8,
+        "warmSensitive": true
+      }
+    ],
+    "tools": [
+      {
+        "id": "wood",
+        "label": "나무 막대",
+        "hardness": 0.2,
+        "power": 1.0
+      },
+      {
+        "id": "metal",
+        "label": "금속 주걱",
+        "hardness": 0.9,
+        "power": 2.0
+      }
+    ],
+    "residueBands": [
+      {
+        "max": 0.25,
+        "label": "낮음"
+      },
+      {
+        "max": 0.6,
+        "label": "중간"
+      },
+      {
+        "max": 1.0,
+        "label": "높음"
+      }
+    ],
+    "quick": {
+      "combos": [
+        [
+          "beeswax",
+          "wood",
+          false
+        ],
+        [
+          "epoxy",
+          "metal",
+          false
+        ],
+        [
+          "epoxy",
+          "wood",
+          true
+        ]
+      ],
+      "progressMultiplier": 2,
+      "daysPerStrokeMultiplier": 2
+    },
+    "maxStrokes": 60,
+    "scratchRounding": "ceil"
+  },
+  "lab4": {
+    "title": "테이프로 박락 재기",
+    "grid": {
+      "rows": 5,
+      "cols": 5
+    },
+    "base": 0.04,
+    "weights": {
+      "thick": 0.3,
+      "mixed": 0.35,
+      "perExtraLayer": 0.03
+    },
+    "maxP": 0.9,
+    "dryRequired": 1.0,
+    "samples": [
+      {
+        "id": "S1",
+        "label": "얇게 한 겹",
+        "thick": 0,
+        "mixed": 0,
+        "layers": 1
+      },
+      {
+        "id": "S2",
+        "label": "두껍게 한 겹",
+        "thick": 1,
+        "mixed": 0,
+        "layers": 1
+      },
+      {
+        "id": "S3",
+        "label": "같은 풀로 얇게 세 겹",
+        "thick": 0,
+        "mixed": 0,
+        "layers": 3
+      },
+      {
+        "id": "S4",
+        "label": "다른 풀을 번갈아 세 겹",
+        "thick": 0,
+        "mixed": 1,
+        "layers": 3
+      }
+    ],
+    "expectedOrder": [
+      "S4",
+      "S2",
+      "S3",
+      "S1"
+    ],
+    "quick": {
+      "samples": [
+        "S1",
+        "S2",
+        "S4"
+      ],
+      "autoDry": true
+    }
+  },
+  "lab5": {
+    "title": "증거가 있는 데까지만",
+    "partA": {
+      "floors": 6,
+      "damagedFace": "west",
+      "reinforcements": [
+        {
+          "id": "clay",
+          "label": "점토",
+          "removeSteps": 3,
+          "damageAtSteps": [],
+          "after100Years": "약해짐 — 자주 갈아 줘야 해요"
+        },
+        {
+          "id": "concrete",
+          "label": "콘크리트",
+          "removeSteps": 12,
+          "damageAtSteps": [
+            4,
+            8,
+            11
+          ],
+          "after100Years": "갈라지고 낡음 — 탑이 흔들려요"
+        }
+      ]
+    },
+    "partB": {
+      "floors": 9,
+      "evidenceFloors": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6
+      ],
+      "imaginedStyle": "dashed"
+    },
+    "quick": {
+      "partA": {
+        "concreteRemoveSteps": 6,
+        "damageAtSteps": [
+          2,
+          4,
+          6
+        ]
+      }
+    }
+  }
+}

@@ -1,0 +1,6 @@
+PLAN_READY
+plan: docs/IMPLEMENTATION_PLAN.md
+written: 2026-11-03
+plan-lines: 477
+planner: Claude (계획) / implementer: Codex (코딩) / server: Grok (dev·preview, docs/SERVER.md)
+start: docs/IMPLEMENTATION_PLAN.md §0 작업 규칙 → §3 확정 사항 → §10 Phase 1부터 순서대로. 각 Phase의 DoD를 통과한 뒤 다음 Phase로.

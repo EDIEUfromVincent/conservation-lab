@@ -1,0 +1,1 @@
+export function createStore<T>(initial:T){let value=initial;const listeners=new Set<(v:T)=>void>();return {get:()=>value,set:(fn:(v:T)=>T)=>{value=fn(value);listeners.forEach(f=>f(value));},subscribe:(fn:(v:T)=>void)=>{listeners.add(fn);return ()=>listeners.delete(fn);}};}

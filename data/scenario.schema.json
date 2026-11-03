@@ -1,0 +1,948 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "scenario.schema.json",
+  "title": "보존과학자의 하루 — 시나리오",
+  "type": "object",
+  "required": [
+    "meta",
+    "story",
+    "profiles",
+    "teams",
+    "experts",
+    "principles",
+    "outcomeTypes",
+    "healthStart",
+    "reasonTags",
+    "intro",
+    "video",
+    "heritagePick",
+    "expertStudy",
+    "teamSetup",
+    "cases",
+    "algorithm",
+    "program",
+    "aiCheck",
+    "reflection",
+    "homework",
+    "wrapup"
+  ],
+  "properties": {
+    "meta": {
+      "type": "object",
+      "required": [
+        "title",
+        "version",
+        "language"
+      ],
+      "properties": {
+        "title": {
+          "type": "string"
+        },
+        "subtitle": {
+          "type": "string"
+        },
+        "version": {
+          "type": "string"
+        },
+        "audience": {
+          "type": "string"
+        },
+        "language": {
+          "const": "ko"
+        },
+        "updated": {
+          "type": "string"
+        },
+        "note": {
+          "type": "string"
+        }
+      }
+    },
+    "profiles": {
+      "type": "object",
+      "required": [
+        "120",
+        "80"
+      ],
+      "additionalProperties": {
+        "$ref": "#/$defs/profile"
+      }
+    },
+    "teams": {
+      "type": "array",
+      "minItems": 4,
+      "maxItems": 4,
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "name"
+        ],
+        "properties": {
+          "id": {
+            "enum": [
+              1,
+              2,
+              3,
+              4
+            ]
+          },
+          "name": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "experts": {
+      "type": "array",
+      "minItems": 4,
+      "maxItems": 4,
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "label",
+          "short",
+          "symbol"
+        ],
+        "properties": {
+          "id": {
+            "$ref": "#/$defs/expertId"
+          },
+          "label": {
+            "type": "string"
+          },
+          "short": {
+            "type": "string"
+          },
+          "symbol": {
+            "type": "string"
+          },
+          "colorToken": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "principles": {
+      "type": "array",
+      "minItems": 5,
+      "maxItems": 5,
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "step",
+          "label",
+          "kid"
+        ],
+        "properties": {
+          "id": {
+            "$ref": "#/$defs/principleId"
+          },
+          "step": {
+            "$ref": "#/$defs/stepKey"
+          },
+          "label": {
+            "type": "string"
+          },
+          "kid": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "outcomeTypes": {
+      "type": "object",
+      "required": [
+        "solved",
+        "worse",
+        "irreversible"
+      ],
+      "additionalProperties": {
+        "type": "object",
+        "required": [
+          "symbol",
+          "shape",
+          "label",
+          "healthDelta"
+        ],
+        "properties": {
+          "symbol": {
+            "type": "string"
+          },
+          "shape": {
+            "enum": [
+              "circle",
+              "triangle",
+              "cross"
+            ]
+          },
+          "label": {
+            "type": "string"
+          },
+          "healthDelta": {
+            "type": "number",
+            "maximum": 0
+          }
+        }
+      }
+    },
+    "healthStart": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "reasonTags": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "label"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "label": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "intro": {
+      "type": "object",
+      "required": [
+        "mission",
+        "question",
+        "worksheetPrompt"
+      ]
+    },
+    "video": {
+      "type": "object",
+      "required": [
+        "title",
+        "url",
+        "localFile",
+        "watchFor"
+      ],
+      "properties": {
+        "url": {
+          "type": "string"
+        },
+        "localFile": {
+          "type": "string"
+        },
+        "watchFor": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "localFilePlain": {
+          "type": "string"
+        }
+      }
+    },
+    "heritagePick": {
+      "type": "object",
+      "required": [
+        "prompt",
+        "examples",
+        "teamPrompt"
+      ],
+      "properties": {
+        "examples": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "required": [
+              "name",
+              "place",
+              "material",
+              "experts"
+            ],
+            "properties": {
+              "experts": {
+                "type": "array",
+                "minItems": 1,
+                "items": {
+                  "$ref": "#/$defs/expertId"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "expertStudy": {
+      "type": "object",
+      "required": [
+        "tasks",
+        "manualBaseUrl"
+      ]
+    },
+    "teamSetup": {
+      "type": "object",
+      "required": [
+        "roleRules"
+      ]
+    },
+    "cases": {
+      "type": "array",
+      "minItems": 5,
+      "maxItems": 5,
+      "items": {
+        "$ref": "#/$defs/case"
+      }
+    },
+    "algorithm": {
+      "type": "object",
+      "required": [
+        "wallTitle",
+        "wallPrompt",
+        "prompt",
+        "compareLabel",
+        "hubQuestion",
+        "clusterMin",
+        "clusterMax"
+      ]
+    },
+    "aiCheck": {
+      "type": "object",
+      "required": [
+        "title",
+        "brief",
+        "promptToAsk",
+        "capturedAnswers",
+        "checklist",
+        "real",
+        "promptTemplate",
+        "checkOptions",
+        "trustPoll"
+      ],
+      "properties": {
+        "capturedAnswers": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "model",
+              "date",
+              "text"
+            ],
+            "properties": {
+              "model": {
+                "type": "string"
+              },
+              "date": {
+                "type": "string"
+              },
+              "text": {
+                "type": "string",
+                "minLength": 1
+              }
+            }
+          }
+        },
+        "checklist": {
+          "type": "array",
+          "minItems": 5,
+          "items": {
+            "type": "object",
+            "required": [
+              "step",
+              "question"
+            ],
+            "properties": {
+              "step": {
+                "$ref": "#/$defs/stepKey"
+              },
+              "question": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "real": {
+          "$ref": "#/$defs/history"
+        }
+      }
+    },
+    "reflection": {
+      "type": "object",
+      "required": [
+        "questions"
+      ],
+      "properties": {
+        "questions": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "wrapup": {
+      "type": "object",
+      "required": [
+        "message",
+        "showRanking"
+      ]
+    },
+    "story": {
+      "type": "object",
+      "required": [
+        "labName",
+        "fileLabel",
+        "clock",
+        "mentor",
+        "bridges"
+      ],
+      "properties": {
+        "clock": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "mentor": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "bridges": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "program": {
+      "type": "object",
+      "required": [
+        "requestTitle",
+        "requestPrompt",
+        "riskPrompt",
+        "buildTitle",
+        "testTitle",
+        "debugTitle",
+        "maxDecisions",
+        "choiceRange",
+        "maxChars",
+        "bugMessages"
+      ],
+      "properties": {
+        "bugMessages": {
+          "type": "object",
+          "required": [
+            "B1",
+            "B2",
+            "B3",
+            "B4",
+            "B5",
+            "B6"
+          ]
+        }
+      }
+    },
+    "homework": {
+      "type": "object",
+      "required": [
+        "title",
+        "fields",
+        "example"
+      ]
+    }
+  },
+  "$defs": {
+    "expertId": {
+      "enum": [
+        "metal",
+        "glass",
+        "paint",
+        "adhesive"
+      ]
+    },
+    "principleId": {
+      "enum": [
+        "P1",
+        "P2",
+        "P3",
+        "P4",
+        "P5"
+      ]
+    },
+    "stepKey": {
+      "enum": [
+        "investigate",
+        "rootCause",
+        "reversible",
+        "minimal",
+        "evidence"
+      ]
+    },
+    "resultType": {
+      "enum": [
+        "solved",
+        "worse",
+        "irreversible"
+      ]
+    },
+    "profile": {
+      "type": "object",
+      "required": [
+        "label",
+        "skipOptional",
+        "quickLabs",
+        "breakAfterCase",
+        "phases",
+        "caseStepMinutes"
+      ],
+      "properties": {
+        "label": {
+          "type": "string"
+        },
+        "skipOptional": {
+          "type": "boolean"
+        },
+        "quickLabs": {
+          "type": "boolean"
+        },
+        "breakAfterCase": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "phases": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "id",
+              "screen",
+              "minutes"
+            ],
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "screen": {
+                "type": "string",
+                "pattern": "^S[0-9]{2}$"
+              },
+              "minutes": {
+                "type": "number",
+                "minimum": 0
+              }
+            }
+          }
+        },
+        "caseStepMinutes": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "number",
+            "minimum": 0
+          }
+        },
+        "note": {
+          "type": "string"
+        }
+      }
+    },
+    "history": {
+      "type": "object",
+      "required": [
+        "lines",
+        "sources"
+      ],
+      "properties": {
+        "lines": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string"
+          }
+        },
+        "sources": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "required": [
+              "title",
+              "url"
+            ],
+            "properties": {
+              "title": {
+                "type": "string"
+              },
+              "url": {
+                "type": "string",
+                "pattern": "^https?://"
+              }
+            }
+          }
+        }
+      }
+    },
+    "choice": {
+      "type": "object",
+      "required": [
+        "key",
+        "label",
+        "outcome"
+      ],
+      "properties": {
+        "key": {
+          "enum": [
+            "A",
+            "B",
+            "C"
+          ]
+        },
+        "label": {
+          "type": "string",
+          "minLength": 1
+        },
+        "outcome": {
+          "type": "string"
+        }
+      }
+    },
+    "delayed": {
+      "type": "object",
+      "required": [
+        "label",
+        "text",
+        "extraDelta"
+      ],
+      "properties": {
+        "label": {
+          "type": "string"
+        },
+        "text": {
+          "type": "string",
+          "minLength": 1
+        },
+        "extraDelta": {
+          "type": "number",
+          "maximum": 0
+        }
+      }
+    },
+    "node": {
+      "type": "object",
+      "required": [
+        "id",
+        "type"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9]*[A-C]?$"
+        },
+        "type": {
+          "enum": [
+            "decision",
+            "outcome",
+            "historyJoin"
+          ]
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "decision"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "step",
+              "optional",
+              "prompt",
+              "choices",
+              "journal"
+            ],
+            "properties": {
+              "step": {
+                "$ref": "#/$defs/stepKey"
+              },
+              "optional": {
+                "type": "boolean"
+              },
+              "prompt": {
+                "type": "string",
+                "minLength": 1
+              },
+              "context": {
+                "type": "string"
+              },
+              "debate": {
+                "type": "boolean"
+              },
+              "choices": {
+                "type": "array",
+                "minItems": 2,
+                "maxItems": 3,
+                "items": {
+                  "$ref": "#/$defs/choice"
+                }
+              },
+              "journal": {
+                "type": "object",
+                "required": [
+                  "id",
+                  "text",
+                  "hiddenPrinciple"
+                ],
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "pattern": "^j-"
+                  },
+                  "text": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "hiddenPrinciple": {
+                    "$ref": "#/$defs/principleId"
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "outcome"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "result",
+              "principle",
+              "text"
+            ],
+            "properties": {
+              "result": {
+                "$ref": "#/$defs/resultType"
+              },
+              "principle": {
+                "$ref": "#/$defs/principleId"
+              },
+              "text": {
+                "type": "string",
+                "minLength": 1
+              },
+              "healthDelta": {
+                "type": "number",
+                "maximum": 0
+              },
+              "delayed": {
+                "$ref": "#/$defs/delayed"
+              },
+              "retry": {
+                "type": "boolean"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "historyJoin"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "text"
+            ],
+            "properties": {
+              "text": {
+                "type": "string",
+                "minLength": 1
+              }
+            }
+          }
+        }
+      ]
+    },
+    "lab": {
+      "type": "object",
+      "required": [
+        "id",
+        "title",
+        "predict",
+        "fallbackEvidence"
+      ],
+      "properties": {
+        "id": {
+          "enum": [
+            "lab1",
+            "lab2",
+            "lab3",
+            "lab4",
+            "lab5"
+          ]
+        },
+        "title": {
+          "type": "string"
+        },
+        "predict": {
+          "type": "object",
+          "required": [
+            "type",
+            "prompt"
+          ],
+          "properties": {
+            "type": {
+              "enum": [
+                "rank",
+                "choice",
+                "number"
+              ]
+            },
+            "prompt": {
+              "type": "string"
+            },
+            "options": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "fallbackEvidence": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "case": {
+      "type": "object",
+      "required": [
+        "id",
+        "order",
+        "title",
+        "place",
+        "year",
+        "material",
+        "lead",
+        "support",
+        "brief",
+        "flow",
+        "nodes",
+        "wrap"
+      ],
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "order": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 5
+        },
+        "scored": {
+          "type": "boolean"
+        },
+        "title": {
+          "type": "string"
+        },
+        "place": {
+          "type": "string"
+        },
+        "year": {
+          "type": "string"
+        },
+        "material": {
+          "type": "string"
+        },
+        "lead": {
+          "$ref": "#/$defs/expertId"
+        },
+        "support": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/expertId"
+          }
+        },
+        "brief": {
+          "type": "object",
+          "required": [
+            "lines"
+          ],
+          "properties": {
+            "lines": {
+              "type": "array",
+              "minItems": 1,
+              "maxItems": 5,
+              "items": {
+                "type": "string"
+              }
+            },
+            "illustration": {
+              "type": "string"
+            }
+          }
+        },
+        "flow": {
+          "type": "array",
+          "minItems": 2,
+          "items": {
+            "type": "string"
+          }
+        },
+        "lab": {
+          "$ref": "#/$defs/lab"
+        },
+        "nodes": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/node"
+          }
+        },
+        "history": {
+          "$ref": "#/$defs/history"
+        },
+        "wrap": {
+          "type": "object",
+          "required": [
+            "principles",
+            "question"
+          ],
+          "properties": {
+            "principles": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/principleId"
+              }
+            },
+            "question": {
+              "type": "string"
+            }
+          }
+        },
+        "teacher": {
+          "type": "object"
+        }
+      }
+    }
+  }
+}

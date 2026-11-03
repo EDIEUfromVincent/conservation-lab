@@ -1,0 +1,47 @@
+# 4D 프레임 설계 명세 검증 로그
+명세: frame-lab/4d-frame-spec.json (3차: 독립 검토 revise 반영 — 비스듬한 당김·각도 통제·12×12cm 종이 받침판·받침판 한계)
+검증기: /Users/vincent/.codex/skills/inquiry-science-webapp/scripts/4d/validate-frame-spec.mjs
+실행: 2026-11-03 14:10 KST, node v26.8.1
+명령: node ~/.codex/skills/inquiry-science-webapp/scripts/4d/validate-frame-spec.mjs frame-lab/4d-frame-spec.json
+
+
+## 설계 게이트: frame-lab/4d-frame-spec.json
+[OK] SPEC-FORMAT (형식/필수) format=4d-frame-spec, version=1
+[OK] SPEC-UNIT (형식/필수) 단원: 흔들리지 않는 지지틀 — 보존연구소 구조 연구실 / 초등 5학년 영재학급(16명, 4모둠) / 구조와 힘 — 삼각형 보강 유무에 따른 유물 운반·전시 지지틀의 흔들림 비교
+[OK] SPEC-GOALS (증거/필수) 학습 목표 3개(1~4개, 각각 관찰 가능한 증거 포함)
+[OK] ROLE-KIND (역할/필수) 주 역할: structure-model — 구조 모형 — 프레임의 기하 자체가 개념이다(다면체, 트러스, 결정).
+[OK] ROLE-DOES (역할/필수) 프레임이 하는 물리적 일: 모둠이 7cm 봉 12개로 정육면체 상자 틀(유물 운반·전시 지지틀의 뼈대)을 조립하고, 10cm 봉을 면의 대각선에 0·2·4·6개 끼워 넣으며 같은 추(동전 10개 주머니)를 실로 매달아 윗면이 옆으로 밀리는 거리를 자로 잰다. 종이 모형 유물을 윗면에 올려 봉이 유물에 닿는지도 확인한다.
+[OK] ROLE-COUNTERFACTUAL (역할/필수) 프레임을 빼면 잃는 것: 그림만으로는 사각형 면이 평행사변형으로 찌그러지는 것을 손으로 밀어 느끼거나 밀림 거리를 자로 잴 수 없고, 대각선 봉을 하나씩 빼며 '몇 개가 꼭 필요한지' 다시 시험하는 설계 활동이 불가능하다.
+[OK] ROLE-R0-LINT (역할/권장) 역할 설명에 개념 도식 신호어 없음
+[OK] ROLE-GEOMETRY (역할/필수) 구조 모형의 학습 대상 기하 성질: 삼각형 분할 유무에 따른 틀의 단단함. 같은 추로 당겼을 때 윗면이 옆으로 밀리는 거리(cm)를 재고, 사각형 면은 각이 변해 평행사변형이 되지만 삼각형은 세 변 길이가 정해지면 모양이 변하지 않음을 확인한다. 보강 봉 수(0·2·4·6)와 밀림 거리의 관계를 표로 정리한다.
+[OK] KIT-LIST (부품/필수) 봉 2종(7cm×14, 10cm×8), 연결발 2종(3발 연결발×5, 6발 연결발×5)
+[OK] BUILD-EXISTS (기하/필수) 조립물 1개
+[OK] BUILD-REFS[cradle] (기하/필수) 유물 지지틀(정육면체 상자 틀 + 대각선 보강): 꼭짓점 8, 봉 18 — 참조 무결성
+[OK] BUILD-LENGTH[cradle] (기하/필수) 모든 봉 길이가 좌표와 일치(연결 여유 0.5cm×2, 허용 ±1cm)
+[OK] BUILD-DEGREE[cradle] (기하/필수) 모든 꼭짓점의 봉 수 ≤ 연결발 가지 수
+[OK] BUILD-INVENTORY[cradle] (부품/필수) 모둠 부품 수량으로 조립 가능
+[OK] BUILD-CONNECTED[cradle] (기하/필수) 연결 성분 1개
+[OK] BUILD-RIGID[cradle] (기하/필수) 단단함 주장: E=18 ≥ 3V−6=18, 최소 차수 3 (필요조건만 검사)
+[OK] BUILD-STEPS[cradle] (증거/필수) 조립 단계 6개(각 단계에 학생이 확인할 점검 포함)
+[OK] BUILD-STEP-EDGES[cradle] (기하/필수) 단계별 누적 봉 수: 4 → 8 → 12 → 14 → 16 → 18 / 전체 18
+[OK] MANIP-EXISTS (증거/필수) 프레임 조작 2개
+[OK] MANIP-SHAPE[M1] (증거/필수) M1: 대각선(삼각형 보강) 봉의 수: 0, 2, 4, 6개 → 같은 추로 당겼을 때 윗면 모서리가 옆으로 밀린 거리(cm, 자로 읽어 0.5cm 단위로 적음)
+[OK] MANIP-CONTROL[M1] (증거/권장) 통제 변인 9개
+[OK] SAFE-STUDENT-FLAME[M1] (안전/필수) 학생 조작에 불꽃 취급 없음
+[OK] MANIP-SHAPE[M2] (증거/필수) M2: 대각선 봉의 수(6→5→4→3…)와 자리(어느 면) → 윗면 밀림 거리(cm)와 종이 모형·받침판에 닿거나 자국을 남긴 봉의 수
+[OK] MANIP-CONTROL[M2] (증거/권장) 통제 변인 4개
+[OK] SAFE-STUDENT-FLAME[M2] (안전/필수) 학생 조작에 불꽃 취급 없음
+[OK] GOAL-COVERAGE (증거/필수) 프레임 조작으로 증거가 생기는 목표 3/3
+[OK] GOAL-COVERAGE-HALF (증거/권장) 목표의 절반 이상이 프레임 증거와 연결
+[OK] TIME-SUM (시간/필수) 차시 합 40분 / 선언 40분
+[OK] TIME-HANDS-ON (시간/필수) 학생이 프레임을 손에 쥔 시간 28분 = 70% (기준 30% 이상)
+[OK] TIME-LINKED (시간/필수) 프레임 구간 3개가 조립물·조작과 연결
+[OK] SAFE-DECLARED (안전/필수) 안전 선언
+[OK] LIMITS (안전/필수) 모형 한계 6개
+[OK] APP-VIEWER (형식/필수) 앱 뷰어: css3d
+
+결과: 통과
+
+종료 코드: 0
+
+참고: 설계 게이트(1단계) 기록. 결과물 게이트 scripts/4d/gate.mjs frame-lab 결과는 docs/FRAME_GATE_REPORT.txt, 독립 검토는 docs/FRAME_REVIEW.json. 명세가 바뀌었으므로 teacher-guide.md 부품표(종이 받침판 12×12cm 추가)와 frame-app 화면 문구를 Codex가 맞춘 뒤 게이트·검토를 다시 받는다.

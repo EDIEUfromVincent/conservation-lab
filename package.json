@@ -1,0 +1,40 @@
+{
+  "name": "conservation-lab",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "preview": "vite preview",
+    "prebuild": "npm run typecheck && npm run validate",
+    "build": "vite build && node tools/check-build.mjs",
+    "validate": "tsx tools/validate-scenario.ts",
+    "pretest": "npm run validate",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "e2e": "playwright test",
+    "typecheck": "tsc --noEmit",
+    "gate:frame": "node tools/gate-frame.mjs",
+    "package:classroom": "npm run build && node tools/package-classroom.mjs",
+    "build:extras": "VITE_EXTRAS=1 vite build"
+  },
+  "dependencies": {
+    "d3-delaunay": "^6.0.4",
+    "qrcode-generator": "^2.0.4",
+    "seedrandom": "^3.0.5",
+    "three": "^0.187.0"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.58.2",
+    "@types/d3-delaunay": "^6.0.4",
+    "@types/node": "^22.0.0",
+    "@types/seedrandom": "^3.0.8",
+    "@types/three": "^0.187.0",
+    "ajv": "^8.17.1",
+    "tsx": "^4.21.0",
+    "typescript": "^5.9.3",
+    "vite": "^7.3.1",
+    "vite-plugin-singlefile": "^2.3.0",
+    "vitest": "^3.2.4"
+  }
+}

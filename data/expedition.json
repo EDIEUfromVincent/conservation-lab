@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "note": "사진·확대 관찰은 제공된 사건 자료를 살피는 활동이다. 새 실물 사진이나 현장 측정값이 아니다.",
+  "stations": [
+    {"caseId":"case1","photo":"brief.lines[1]","lens":"brief.lines[2]"},
+    {"caseId":"case2","photo":"brief.lines[3]","lens":"brief.lines[2]"},
+    {"caseId":"case3","photo":"brief.lines[3]","lens":"brief.lines[2]"},
+    {"caseId":"case4","photo":"brief.lines[2]","lens":"brief.lines[2]"},
+    {"caseId":"case5","photo":"brief.lines[2]","lens":"brief.lines[3]"}
+  ]
+}

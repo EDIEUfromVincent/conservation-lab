@@ -1,0 +1,24 @@
+.fv { display: grid; grid-template-columns: minmax(260px, 1fr) minmax(240px, 320px); gap: 16px; align-items: start; }
+.fv-stage { position: relative; height: 380px; perspective: 900px; background: radial-gradient(circle at 50% 40%, #232a36, #11151c); border-radius: 16px; overflow: hidden; cursor: grab; touch-action: none; }
+.fv-stage:active { cursor: grabbing; }
+.fv-stage:focus-visible { outline: 3px solid #f97316; outline-offset: 2px; }
+.fv-world { position: absolute; left: 50%; top: 50%; transform-style: preserve-3d; }
+/* preserve-3d 그룹에 opacity를 주면 평면으로 눌리므로 투명도는 봉 조각(i)에만 준다. */
+.fv-rod { position: absolute; transform-style: preserve-3d; }
+.fv-rod i { position: absolute; left: 0; top: 0; transform-origin: 0 0; border-radius: 3px; box-shadow: inset 0 0 0 1px rgba(0,0,0,.25); transition: opacity .25s; }
+.fv-rod.pending i { opacity: .12; }
+.fv-node { position: absolute; left: -7px; top: -7px; width: 14px; height: 14px; border-radius: 50%; background: #f8fafc; box-shadow: 0 0 0 2px #1f2937; }
+.fv-panel { display: grid; gap: 10px; font: 15px/1.5 system-ui, sans-serif; }
+.fv-counter { margin: 0; font-weight: 700; }
+.fv-steps { display: flex; gap: 6px; list-style: none; margin: 0; padding: 0; }
+.fv-steps button { width: 34px; height: 34px; border-radius: 50%; border: 1px solid #9ca3af; background: #fff; font-weight: 700; }
+.fv-steps button[aria-current="step"] { background: #f97316; color: #fff; border-color: #f97316; }
+.fv-step-text p { margin: 4px 0; }
+.fv-check { color: #b45309; }
+.fv-nav { display: flex; gap: 8px; }
+.fv-nav button { flex: 1; min-height: 40px; border-radius: 10px; border: 1px solid #9ca3af; background: #fff; }
+.fv-kit { border-collapse: collapse; width: 100%; font-size: 14px; }
+.fv-kit caption { text-align: left; font-weight: 700; padding-bottom: 4px; }
+.fv-kit td { border-top: 1px solid #e5e7eb; padding: 4px 6px; }
+@media (max-width: 720px) { .fv { grid-template-columns: 1fr; } .fv-stage { height: 320px; } }
+@media (prefers-reduced-motion: reduce) { .fv-rod i { transition: none; } }

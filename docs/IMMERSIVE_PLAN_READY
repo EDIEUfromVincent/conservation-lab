@@ -1,0 +1,8 @@
+IMMERSIVE_PLAN_READY
+plan: docs/IMMERSIVE_PLAN.md
+spec: frame-lab/4d-frame-spec.json (설계 게이트 통과, 로그 docs/FRAME_SPEC_VALIDATION.txt)
+written: 2026-11-03
+planner: Claude (계획·4D 명세) / implementer: Codex (코딩) / server: Grok (docs/SERVER.md)
+scope: ?mode=expedition 연구소 탐험 + ?mode=frame 4D 프레임 구조 연구실 + frame-lab/ 독립 폴더(게이트 대상). 기존 teacher/manual/print·120/80분·38 unit/17 E2E·단일 오프라인 dist 보존.
+start: docs/IMMERSIVE_PLAN.md §10 단계 F1(frame-lab 독립 폴더 → gate.mjs PASS)부터. 탐험 코드는 F2 뒤에 시작한다.
+done-when: §9 A1~A15 전부 체크, docs/FRAME_GATE_REPORT.txt에 '판정: PASS', docs/FRAME_REVIEW.json 독립 검토 원문 저장.

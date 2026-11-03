@@ -1,0 +1,1 @@
+export function fitStage(){const stage=document.querySelector<HTMLElement>('#stage');if(!stage)return;const scale=Math.min(innerWidth/1920,innerHeight/1080);stage.style.transform=`translate(-50%,-50%) scale(${scale})`;}
