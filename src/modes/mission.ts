@@ -13,6 +13,9 @@ import {
 } from '../mission/engine';
 import {mountScene, type SceneHandle} from '../mission/scene';
 import {gamesData} from '../games/data';
+import {npcsFor, npcName, talkTo, showGains, bagButton, openBag} from '../rpg/ui';
+import {award, gainXp, giveItem, rpg} from '../rpg/hero';
+import {PL} from '../rpg/labels';
 import {loadMission, missionKey, starredCases, rankBadge, rankOf, rankName, seenStars, markSeen, starIcon, chime} from '../mission/progress';
 import {joystick} from '../mission/joystick';
 import {roleOf} from '../roles/engine';
@@ -79,7 +82,7 @@ function runMission(root: HTMLElement, caseId: string) {
   const KEY = missionKey(caseId);
   let state = loadMission(caseId) ?? initialMission(caseId);
   // 화면에만 쓰는 값: 방금 고른 카드, 실습 기록 저장 여부, 가까이 있는 장소
-  const view = {picked: '', pickedOk: false, labReported: false, near: null as string | null, expert: ''};
+  const view = {picked: '', pickedOk: false, labReported: false, near: null as string | null, expert: '', npc: null as string | null, talking: false};
 
   const stage = el('div', {id: 'stage', class: 'ms'});
   const world = el('div', {class: 'ms-world'});
@@ -96,7 +99,18 @@ function runMission(root: HTMLElement, caseId: string) {
   const scene: SceneHandle = mountScene(world, caseId, m.places.map(p => ({id: p.id, slot: p.slot, name: p.name})), id => {
     view.near = id;
     if (state.screen === 'map') render();
-  });
+  }, {npcs: npcsFor(caseId), onNpc: id => { view.npc = id; if (state.screen === 'map') render(); }});
+  /** 길가 동물과 대화(클로즈업). 대화 중에는 걷기·패널을 멈춘다 */
+  async function talk(id: string) {
+    if (view.talking) return;
+    view.talking = true;
+    held.clear(); joy.release(); scene.setInput(0, 0);
+    stage.classList.add('talking');
+    await talkTo(stage, scene, id);
+    stage.classList.remove('talking');
+    view.talking = false;
+    render();
+  }
   if (!scene.ok) {
     world.classList.add('flat');
     world.append(el('p', {class: 'ms-nogl'}, ML.noGL));
@@ -117,9 +131,13 @@ function runMission(root: HTMLElement, caseId: string) {
     const {state: next, effect} = act(state, a);
     state = next;
     if (a.t === 'answer') { view.picked = a.option; view.pickedOk = !!effect.correct; }
+    else if (a.t !== 'labWork') view.picked = '';
     if (a.t === 'pickExpert') view.expert = a.id;
     if (effect.message === 'needExpert') say(ML.needExpert);
-    else if (a.t !== 'labWork') view.picked = '';
+    // RPG: 단서를 풀면 그 역할 경험치, 해결 결과가 나오면 근거 단서의 역할 경험치
+    if (a.t === 'answer' && effect.correct) showGains(stage, award(h => gainXp(h, clueOf(state, state.clue!).role, rpg.xp.clue)));
+    if (a.t === 'commit' && state.screen === 'outcome' && lastOutcome(state, state.decision!)?.result === 'solved')
+      showGains(stage, award(h => gainXp(h, clueOf(state, lastAttempt(state, state.decision!)!.reason).role, rpg.xp.decisionSolved)));
     if (a.t === 'lab') view.labReported = false;
     if (effect.message === 'locked') say(ML.needUnlock);
     if (effect.message === 'placeLocked') say(ML.placeLocked);
@@ -162,6 +180,7 @@ function runMission(root: HTMLElement, caseId: string) {
       el('div', {class: 'ms-pill ms-file'}, el('strong', {}, `${ML.file} #${c.order}`), ` · ${c.title}`),
       el('div', {class: 'ms-pill ms-clock'}, scenario.story.clock[c.id as keyof typeof scenario.story.clock] ?? ''),
       el('div', {class: 'ms-hud-right'},
+        bagButton(stage),
         el('div', {class: 'ms-pill ms-rank'}, rankBadge(starredCases().length)),
         el('div', {class: 'ms-pill ms-count', 'data-testid': 'fact-count'}, el('span', {class: 'ms-dot fact'}), `${ML.facts} `, el('strong', {}, facts(state).length)),
         el('div', {class: 'ms-pill ms-count'}, el('span', {class: 'ms-dot clue'}), `${ML.clues} `, el('strong', {}, `${state.solved.length}/${m.clues.length}`))));
@@ -254,6 +273,12 @@ function runMission(root: HTMLElement, caseId: string) {
       next?.t === 'history' ? el('div', {class: 'ms-actions'}, primaryButton(ML.historyBtn + ' →', {t: 'history'})) : null));
     if (scene.ok) layer.append(joy.el);
     const near = view.near ? m.places.find(p => p.id === view.near) : undefined;
+    if (view.npc && !view.talking && !near) {
+      const id = view.npc;
+      const enter = button('', () => void talk(id), {class: 'ms-enter npc pop', 'data-testid': 'talk'});
+      enter.append(el('span', {class: 'ms-key'}, 'E'), el('strong', {}, npcName(id)), ` ${PL.talk}`);
+      layer.append(enter);
+    }
     if (near) {
       const enter = button('', () => dispatch({t: 'place', id: near.id}), {class: 'ms-enter pop', 'data-testid': 'enter'});
       enter.append(el('span', {class: 'ms-key'}, 'E'), el('strong', {}, near.name), ` ${ML.enter}`);
@@ -461,6 +486,9 @@ function runMission(root: HTMLElement, caseId: string) {
   /** 별 의식: 사건을 처음 마쳤을 때 한 번만. 빛줄기 + 반짝이 + 별이 날아와 칸에 박히고, 등급이 오르면 승급 배너. */
   function starCeremony() {
     markSeen(caseId);
+    // 사건 보상 도구(있으면)
+    const gift = rpg.gifts.caseComplete[caseId];
+    if (gift) setTimeout(() => showGains(stage, award(h => giveItem(h, gift))), 2600);
     const stars = starredCases().length;
     const before = rankName(stars - 1), after = rankOf(stars)!;
     const up = before !== after.name;
@@ -537,7 +565,9 @@ function runMission(root: HTMLElement, caseId: string) {
       if (['clue', 'lab', 'place', 'decision'].includes(state.screen)) dispatch({t: 'back'});
       return;
     }
+    if (lower === 'i') { openBag(stage); return; }
     if (state.screen === 'map' && lower === 'e' && view.near) { dispatch({t: 'place', id: view.near}); return; }
+    if (state.screen === 'map' && lower === 'e' && view.npc) { void talk(view.npc); return; }
     const letter = k.toUpperCase();
     if (state.screen === 'incident' && LETTERS.includes(letter as never)) {
       const e = scenario.experts[LETTERS.indexOf(letter as never)];

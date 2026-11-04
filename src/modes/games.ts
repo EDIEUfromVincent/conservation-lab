@@ -10,6 +10,9 @@ import {rankBadge, starredCases} from '../mission/progress';
 import {roleOf} from '../roles/engine';
 import {roleIcon} from '../roles/webtoon';
 import {RL} from '../roles/labels';
+import {showGains, bagButton} from '../rpg/ui';
+import {award, gainXp, giveItem, rpg} from '../rpg/hero';
+import type {RoleId} from '../roles/engine';
 import '../mission/style.css';
 import '../roles/style.css';
 import '../games/style.css';
@@ -32,7 +35,7 @@ function hud(stage: HTMLElement, title: string, back: {href: string; label: stri
   stage.append(el('div', {class: 'ms-hud'}, add(el('div', {class: 'ms-hud-row'}),
     el('a', {class: 'ms-pill ms-list', href: back.href}, `☰ ${back.label}`),
     el('div', {class: 'ms-pill ms-file'}, el('strong', {}, title)),
-    el('div', {class: 'ms-hud-right'}, el('div', {class: 'ms-pill ms-rank'}, rankBadge(starredCases().length))))));
+    el('div', {class: 'ms-hud-right'}, bagButton(stage), el('div', {class: 'ms-pill ms-rank'}, rankBadge(starredCases().length))))));
 }
 
 export function medalIcon(m: Medal | undefined) {
@@ -66,8 +69,14 @@ function hub(stage: HTMLElement) {
 }
 
 /** 결과 카드: 메달(또는 다시 도전) + 버튼 */
-function result(stage: HTMLElement, game: {id: string; name: string; win: string; tip: string}, medal: Medal | null, lose: string, retry: () => void) {
+function result(stage: HTMLElement, game: {id: string; name: string; role: string; win: string; tip: string}, medal: Medal | null, lose: string, retry: () => void) {
   const better = medal ? saveMedal(game.id, medal) : false;
+  // RPG: 메달마다 그 역할 경험치, 금메달이면 그 게임의 보상 도구
+  if (medal) setTimeout(() => showGains(stage, award(h => {
+    const a = gainXp(h, game.role as RoleId, rpg.xp.medal[medal]);
+    const b = medal === 'gold' && rpg.gifts.gold[game.id] ? giveItem(a.hero, rpg.gifts.gold[game.id]) : {hero: a.hero, gains: []};
+    return {hero: b.hero, gains: [...a.gains, ...b.gains]};
+  })), 700);
   const card = el('section', {class: 'ms-card gm-result pop', 'data-testid': 'game-result', 'data-medal': medal ?? 'none'},
     el('div', {class: 'gm-result-medal'}, medalIcon(medal ?? undefined)),
     el('h1', {}, medal ? `${gamesData.medals[medal]} · ${GL.medalGot}` : GL.tryAgain),

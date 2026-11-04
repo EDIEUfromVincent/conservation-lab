@@ -5,7 +5,11 @@ import {roles} from '../../src/roles/engine';
 
 async function fresh(page: Page) {
   await open(page, '?mode=roles');
-  await page.evaluate(() => localStorage.clear());
+  await page.evaluate(() => {
+    localStorage.clear();
+    // 스승님 설명은 rpg.spec에서 따로 본다
+    localStorage.setItem('cons-lab:hero', JSON.stringify({version: 1, xp: {record: 0, analyze: 0, material: 0, undo: 0}, items: [], equipped: {}, talked: [], mentorDone: true}));
+  });
   await page.reload();
   await expect(page.locator('#stage')).toHaveAttribute('data-screen', 'intro');
 }

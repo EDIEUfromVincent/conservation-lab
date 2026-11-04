@@ -16,6 +16,7 @@
    - `?mode=manual&expert=metal|glass|paint|adhesive` — 학생 기기용 전문가 매뉴얼 + 미니 퀴즈
    - `?mode=print` — 매뉴얼·학습지 인쇄용(학생 기기가 없을 때)
    - `?mode=roles` — 역할 변신 갈래길: 기록·분석·재료·되돌리기 웹툰 4컷 → 퀴즈 → 변신. 데이터는 `data/roles.json`
+   - RPG(모든 3D 화면 공통): 스승님·길가 동물 대화(클로즈업), 능력치·경험치·레벨, 도구 장착(가방 I). 데이터는 `data/rpg.json`. 확률은 도구 찾기에만 쓰고 역사 결과에는 쓰지 않는다
    - `?mode=games` — 훈련장 미니게임(안전 운반 · 돋보기 녹 찾기, 메달). 데이터는 `data/games.json`. 등급(별 5개)은 `data/ranks.json`
    - `?mode=mission` — 3D 미션(사건 목록 → `&case=case1~5`). 사건 → 장소(조이스틱으로 걷기) → 단서 → 매뉴얼·연구 일지 카드로 풀기 → 결정. 데이터는 `data/missions.json`
    - `?mode=team&team=1..4` — (P2, 선택) 팀 기기용 실습 샌드박스. 교사 화면과 동기화하지 않는다.

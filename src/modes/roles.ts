@@ -7,6 +7,9 @@ import {act, initialRoles, primary, roles, roleOf, rolesData, validRoles, ROLE_I
 import {mountScene, type SceneHandle} from '../mission/scene';
 import {joystick} from '../mission/joystick';
 import {rankBadge, starredCases} from '../mission/progress';
+import {npcsFor, npcName, talkTo, showGains, bagButton, openBag} from '../rpg/ui';
+import {award, gainXp, giveItem, loadHero, rpg} from '../rpg/hero';
+import {PL} from '../rpg/labels';
 import '../mission/style.css';
 import '../roles/style.css';
 
@@ -17,7 +20,7 @@ const LETTERS = ['A', 'B', 'C', 'D'];
 export function mountRoles(root: HTMLElement) {
   document.title = RL.docTitle;
   let state = load();
-  const view = {picked: -1, near: null as string | null};
+  const view = {picked: -1, near: null as string | null, npc: null as string | null, talking: false};
 
   const stage = el('div', {id: 'stage', class: 'ms rl'});
   const world = el('div', {class: 'ms-world'});
@@ -31,7 +34,18 @@ export function mountRoles(root: HTMLElement) {
   const scene: SceneHandle = mountScene(world, 'roles', roles.map(r => ({id: r.id, slot: ROLE_SLOT[r.id], name: `${r.name} ${RL.role}`, color: r.color})), id => {
     view.near = id;
     if (state.screen === 'map') render();
-  });
+  }, {npcs: npcsFor('roles'), onNpc: id => { view.npc = id; if (state.screen === 'map') render(); }});
+  /** 스승님·동물과 대화(클로즈업). 대화 중에는 걷기·패널을 멈춘다 */
+  async function talk(id: string) {
+    if (view.talking) return;
+    view.talking = true;
+    held.clear(); joy.release(); push();
+    stage.classList.add('talking');
+    await talkTo(stage, scene, id);
+    stage.classList.remove('talking');
+    view.talking = false;
+    render();
+  }
   if (!scene.ok) {
     world.classList.add('flat');
     world.append(el('p', {class: 'ms-nogl'}, RL.noGL));
@@ -53,7 +67,17 @@ export function mountRoles(root: HTMLElement) {
     view.picked = a.t === 'answer' ? a.option : -1;
     safeSet(KEY, JSON.stringify(state));
     if (state.role !== before.role) scene.goTo(state.role);
-    if (state.screen === 'transform' && before.screen !== 'transform') scene.setOutfit(roleOf(state.role!)!.color, true);
+    if (state.screen === 'transform' && before.screen !== 'transform') {
+      scene.setOutfit(roleOf(state.role!)!.color, true);
+      // 변신: 그 역할 능력치 경험치 + 그 역할의 첫 도구
+      const role = state.role!;
+      setTimeout(() => showGains(stage, award(h => {
+        const a = gainXp(h, role, rpg.xp.roleChange), b = giveItem(a.hero, rpg.gifts.roleChange[role]);
+        return {hero: b.hero, gains: [...a.gains, ...b.gains]};
+      })), 900);
+    }
+    // 처음 갈래길에 들어서면 스승님이 먼저 말을 건다
+    if (state.screen === 'map' && before.screen === 'intro' && !loadHero().mentorDone) setTimeout(() => void talk('mentor'), 700);
     if (state.screen !== 'map') { held.clear(); joy.release(); push(); }
     render();
   }
@@ -68,7 +92,7 @@ export function mountRoles(root: HTMLElement) {
     hud.replaceChildren(add(el('div', {class: 'ms-hud-row'}),
       el('a', {class: 'ms-pill ms-list', href: '?mode=teacher'}, `☰ ${RL.backLesson}`),
       el('div', {class: 'ms-pill ms-file'}, el('strong', {}, rolesData.title)),
-      el('div', {class: 'ms-hud-right'}, el('div', {class: 'ms-pill ms-rank'}, rankBadge(starredCases().length)), el('div', {class: 'ms-pill ms-count', 'data-testid': 'role-count'},
+      el('div', {class: 'ms-hud-right'}, bagButton(stage), el('div', {class: 'ms-pill ms-rank'}, rankBadge(starredCases().length)), el('div', {class: 'ms-pill ms-count', 'data-testid': 'role-count'},
         `${RL.progress} `, el('strong', {}, `${state.done.length}/${ROLE_IDS.length}`)))));
     layer.replaceChildren();
     ({intro: introView, map: mapView, webtoon: webtoonView, quiz: quizView, transform: transformView, done: doneView})[state.screen]();
@@ -104,6 +128,12 @@ export function mountRoles(root: HTMLElement) {
       }))));
     if (scene.ok) layer.append(joy.el);
     const near = view.near ? roleOf(view.near) : undefined;
+    if (view.npc && !view.talking && !near) {
+      const id = view.npc;
+      const enter = button('', () => void talk(id), {class: 'ms-enter npc pop', 'data-testid': 'talk'});
+      enter.append(el('span', {class: 'ms-key'}, 'E'), el('strong', {}, npcName(id)), ` ${PL.talk}`);
+      layer.append(enter);
+    }
     if (near) {
       const enter = button('', () => dispatch({t: 'enter', role: near.id}), {class: 'ms-enter pop', 'data-testid': 'enter'});
       enter.append(el('span', {class: 'ms-key'}, 'E'), el('strong', {}, `${near.name} ${RL.role}`), ` ${RL.enter}`);
@@ -193,7 +223,10 @@ export function mountRoles(root: HTMLElement) {
       return;
     }
     if (['Escape', 'PageUp', 'Backspace'].includes(k)) { e.preventDefault(); if (['webtoon', 'quiz'].includes(state.screen)) dispatch({t: 'map'}); return; }
+    if (view.talking) return;
+    if (lower === 'i') { openBag(stage); return; }
     if (state.screen === 'map' && lower === 'e' && view.near) { dispatch({t: 'enter', role: view.near as RoleId}); return; }
+    if (state.screen === 'map' && lower === 'e' && view.npc) { void talk(view.npc); return; }
     if (state.screen === 'quiz') {
       const i = LETTERS.indexOf(k.toUpperCase());
       if (i >= 0 && i < roleOf(state.role!)!.quiz[state.q].options.length) dispatch({t: 'answer', option: i});

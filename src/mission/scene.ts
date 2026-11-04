@@ -1,10 +1,13 @@
 import * as THREE from 'three';
+import {buildNpc, type NpcKind} from '../rpg/models';
 
 // 사건마다 블록으로 새로 그린 무대. 실제 장소·유물을 재현한 도면이 아니다.
 // 네 자리(main·detail·archive·lab)에 사건별 모형을 세우고, 연구원은 조이스틱·방향키로 걷거나 장소를 고르면 걸어간다.
 
 export type Slot = 'main' | 'detail' | 'archive' | 'lab';
 export interface ScenePlace {id: string; slot: Slot; name: string; color?: string}
+/** 스승님·길가 동물. wander면 집 둘레를 돌아다닌다 */
+export interface SceneNpc {id: string; kind: NpcKind; color?: string; home: [number, number]; wander: boolean}
 export interface MarkerState {left: number; done: boolean; active: boolean; locked: boolean}
 export interface SceneHandle {
   ok: boolean;
@@ -16,6 +19,8 @@ export interface SceneHandle {
   setShift(x: number, y: number): void;
   /** 역할 변신: 연구원 옷 색을 바꾸고 한 바퀴 돈다 */
   setOutfit(color: string, spin?: boolean): void;
+  /** 대화 클로즈업: 연구원과 상대가 마주 보고, 카메라가 둘 옆으로 다가간다. null이면 원래 시점으로 */
+  closeUp(npcId: string | null): void;
   dispose(): void;
 }
 type V3 = [number, number, number];
@@ -45,13 +50,14 @@ interface SetSpec {
   build: (b: Builder, places: ScenePlace[]) => void;
 }
 
-export function mountScene(host: HTMLElement, caseId: string, places: ScenePlace[], onNear: (placeId: string | null) => void): SceneHandle {
+export function mountScene(host: HTMLElement, caseId: string, places: ScenePlace[], onNear: (placeId: string | null) => void,
+  extras: {npcs?: SceneNpc[]; onNpc?: (npcId: string | null) => void} = {}): SceneHandle {
   let renderer: THREE.WebGLRenderer;
   try {
     renderer = new THREE.WebGLRenderer({antialias: true, powerPreference: 'high-performance'});
     if (!renderer.getContext()) throw new Error('no context');
   } catch {
-    return {ok: false, goTo: () => {}, mark: () => {}, setInput: () => {}, setShift: () => {}, setOutfit: () => {}, dispose: () => {}};
+    return {ok: false, goTo: () => {}, mark: () => {}, setInput: () => {}, setShift: () => {}, setOutfit: () => {}, closeUp: () => {}, dispose: () => {}};
   }
   const spec = SETS[caseId] ?? SETS.case1;
   renderer.setPixelRatio(Math.min(devicePixelRatio, 1.25));
@@ -112,6 +118,16 @@ export function mountScene(host: HTMLElement, caseId: string, places: ScenePlace
     texture.needsUpdate = true;
   }
 
+  // ── 스승님·동물 ──
+  const npcs = (extras.npcs ?? []).map(n => {
+    const m = buildNpc(n.kind, (parent, pos, size, color) => b.box(parent, pos, size, color), n.color);
+    m.group.position.set(n.home[0], 0, n.home[1]);
+    scene.add(m.group);
+    return {...n, ...m, target: new THREE.Vector3(n.home[0], 0, n.home[1]), wait: Math.random() * 2, phase: Math.random() * 6};
+  });
+  let talking: (typeof npcs)[number] | null = null;
+  let nearNpc: string | null = null;
+
   // ── 움직임 ──
   const slotOf = new Map(places.map(p => [p.id, p.slot]));
   const round = spec.ground === 'island' ? 15 : 0;
@@ -164,7 +180,7 @@ export function mountScene(host: HTMLElement, caseId: string, places: ScenePlace
     const dt = Math.min(clock.getDelta(), 0.05);
     const t = clock.elapsedTime;
     let moving = false;
-    if (input.lengthSq() > 0.01) {
+    if (input.lengthSq() > 0.01 && !talking) {
       // 손으로 걷기: 자동 걷기를 멈추고 따라가는 카메라로
       target = null;
       follow = true;
@@ -207,6 +223,38 @@ export function mountScene(host: HTMLElement, caseId: string, places: ScenePlace
     camLook.lerp(wantLook, 1 - Math.pow(0.03, dt));
     camera.position.copy(camPos);
     camera.lookAt(camLook);
+    // 동물: 집 둘레의 아무 곳을 골라 천천히 걷고, 닿으면 잠깐 쉰다. 대화 중이면 멈춘다.
+    for (const n of npcs) {
+      if (!n.wander || n === talking) { n.legs.forEach(l => { l.rotation.x *= 0.8; }); continue; }
+      if (n.wait > 0) { n.wait -= dt; continue; }
+      const to = n.target.clone().sub(n.group.position);
+      to.y = 0;
+      if (to.length() < 0.15) {
+        n.wait = 1.5 + Math.random() * 3;
+        n.target.set(n.home[0] + (Math.random() - 0.5) * 6, 0, n.home[1] + (Math.random() - 0.5) * 6);
+        collide(n.target);
+        continue;
+      }
+      n.group.position.addScaledVector(to.normalize(), Math.min(to.length(), 1.1 * dt));
+      collide(n.group.position);
+      n.group.rotation.y = Math.atan2(to.x, to.z);
+      n.phase += dt * 10;
+      n.legs.forEach((l, i) => { l.rotation.x = Math.sin(n.phase + i * Math.PI) * 0.5; });
+      if (n.kind === 'bird' || n.kind === 'frog') n.group.position.y = Math.abs(Math.sin(n.phase * 0.8)) * 0.15;
+    }
+    if (talking) {
+      // 클로즈업 중에는 연구원과 상대가 서로를 본다
+      const d = talking.group.position.clone().sub(avatar.position);
+      avatar.rotation.y = Math.atan2(d.x, d.z);
+      talking.group.rotation.y = Math.atan2(-d.x, -d.z);
+    } else if (follow) {
+      let found: string | null = null, best = 2.2;
+      for (const n of npcs) {
+        const d = Math.hypot(avatar.position.x - n.group.position.x, avatar.position.z - n.group.position.z);
+        if (d < best) { best = d; found = n.id; }
+      }
+      if (found !== nearNpc) { nearNpc = found; extras.onNpc?.(nearNpc); }
+    }
     b.animate(t);
     if (t < spinUntil) {
       const k = 1 - (spinUntil - t);   // 0 → 1
@@ -239,6 +287,30 @@ export function mountScene(host: HTMLElement, caseId: string, places: ScenePlace
       (m.sprite.material.map as THREE.Texture).needsUpdate = true;
     },
     setInput(x, y) { input.set(x, y); },
+    closeUp(npcId) {
+      const n = npcId ? npcs.find(x => x.id === npcId) : null;
+      if (!n) {
+        talking = null;
+        follow = true;
+        return;
+      }
+      talking = n;
+      follow = false;
+      target = null;
+      if (nearNpc) { nearNpc = null; extras.onNpc?.(null); }
+      // 너무 멀면 상대 앞까지 다가간다
+      const a = avatar.position, p = n.group.position;
+      const dir = new THREE.Vector3(p.x - a.x, 0, p.z - a.z);
+      if (dir.length() > 1.8) a.copy(p.clone().addScaledVector(dir.normalize(), -1.6)).setY(0);
+      const d = new THREE.Vector3(p.x - a.x, 0, p.z - a.z).normalize();
+      // 두 인물을 옆에서 잡는다: 선에 수직인 쪽 중 화면 앞(+z) 쪽
+      let side = new THREE.Vector3(d.z, 0, -d.x);
+      if (side.z < 0) side = side.negate();
+      // 두 인물의 머리끝까지 들어오게: 연구원 키(약 2.2) 기준으로 조금 떨어져 눈높이보다 살짝 위에서 잡는다
+      const mid = a.clone().add(p).multiplyScalar(0.5);
+      wantPos = mid.clone().addScaledVector(side, 5.6).add(new THREE.Vector3(0, 2.3, 0));
+      wantLook = mid.clone().add(new THREE.Vector3(0, 1.2, 0));
+    },
     setOutfit(color, spin = false) {
       suit.color.set(color);
       if (spin) spinUntil = clock.elapsedTime + 1;

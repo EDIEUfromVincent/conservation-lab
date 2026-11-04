@@ -1,0 +1,453 @@
+{
+  "version": 1,
+  "_note": "RPG 요소: 능력치(역할 4개)·경험치·레벨, 도구(아이템) 장착, 스승님·길가 동물 대화. 대화 노드는 say(말) 또는 ask(선택지). next가 없으면 대화가 끝난다. 동물의 drop은 대화를 마칠 때 확률로 얻는 도구(확률 = chance + 그 역할 능력치 × perStat).",
+  "stats": {
+    "record": {
+      "name": "기록력",
+      "short": "기록"
+    },
+    "analyze": {
+      "name": "분석력",
+      "short": "분석"
+    },
+    "material": {
+      "name": "재료 감각",
+      "short": "재료"
+    },
+    "undo": {
+      "name": "되돌리기 솜씨",
+      "short": "되돌리기"
+    }
+  },
+  "xp": {
+    "clue": 10,
+    "decisionSolved": 15,
+    "roleChange": 30,
+    "talk": 5,
+    "medal": {
+      "gold": 40,
+      "silver": 25,
+      "bronze": 15
+    },
+    "perStatLevel": 40,
+    "perLevel": 60
+  },
+  "items": [
+    {
+      "id": "tags",
+      "name": "번호표 세트",
+      "role": "record",
+      "bonus": 1,
+      "about": "조각마다 붙이는 작은 번호표예요."
+    },
+    {
+      "id": "camera",
+      "name": "사진기",
+      "role": "record",
+      "bonus": 2,
+      "about": "손대기 전 모습을 그대로 남겨요."
+    },
+    {
+      "id": "loupe",
+      "name": "돋보기",
+      "role": "analyze",
+      "bonus": 2,
+      "about": "작은 금이나 흠도 크게 보여요."
+    },
+    {
+      "id": "microscope",
+      "name": "휴대 현미경",
+      "role": "analyze",
+      "bonus": 3,
+      "about": "눈으로 안 보이는 작은 부분까지 크게 살펴요."
+    },
+    {
+      "id": "brush",
+      "name": "부드러운 붓",
+      "role": "material",
+      "bonus": 1,
+      "about": "부드러워서 흠집을 덜 내요. 그래도 살살 써요."
+    },
+    {
+      "id": "cushion",
+      "name": "완충재",
+      "role": "material",
+      "bonus": 2,
+      "about": "충격을 막는 푹신한 재료예요. 옮길 때 흔들림을 줄여요."
+    },
+    {
+      "id": "spatula",
+      "name": "나무 주걱",
+      "role": "undo",
+      "bonus": 2,
+      "about": "굳은 것을 조금씩 떼어 내요."
+    },
+    {
+      "id": "warmer",
+      "name": "따뜻한 바람 기계",
+      "role": "undo",
+      "bonus": 1,
+      "about": "어떤 접착제는 살살 데우면 물러져요."
+    }
+  ],
+  "gifts": {
+    "roleChange": {
+      "record": "tags",
+      "analyze": "loupe",
+      "material": "brush",
+      "undo": "spatula"
+    },
+    "caseComplete": {
+      "case1": "camera",
+      "case3": "warmer"
+    },
+    "gold": {
+      "transport": "cushion",
+      "rust": "microscope"
+    }
+  },
+  "ui": {
+    "levelUp": "레벨 업!",
+    "got": "새 도구를 얻었어요!",
+    "chance": "찾을 가능성(확률)",
+    "found": "도구를 발견했어요!",
+    "notFound": "이번엔 아무것도 찾지 못했어요."
+  },
+  "mentor": {
+    "name": "스승님",
+    "start": "m1",
+    "nodes": {
+      "m1": {
+        "say": "어서 와요, 견습생(일을 배우는 사람) 여러분! 나는 이 연구소의 스승이에요.",
+        "next": "m2"
+      },
+      "m2": {
+        "say": "이 갈래길 끝에는 네 가지 역할의 문이 있어요. 기록, 분석, 재료, 되돌리기예요.",
+        "next": "m3"
+      },
+      "m3": {
+        "ask": "어떻게 하는지 설명해 줄까요?",
+        "choices": [
+          {
+            "label": "네, 알려 주세요",
+            "next": "m4"
+          },
+          {
+            "label": "아니요, 괜찮아요",
+            "next": "skip"
+          }
+        ]
+      },
+      "m4": {
+        "say": "길을 따라 문 앞까지 걸어가서 E 키를 누르면 문 안으로 들어가요.",
+        "next": "m5"
+      },
+      "m5": {
+        "say": "웹툰으로 그 역할이 하는 일을 봐요. 퀴즈 세 문제를 맞히면 변신해요!",
+        "next": "m6"
+      },
+      "m6": {
+        "say": "변신하면 그 역할의 능력치가 오르고 도구도 하나 받아요. 가방은 I 키로 열어요.",
+        "next": "m7"
+      },
+      "m7": {
+        "say": "길가의 동물들과도 이야기해 봐요. 운이 좋으면 도구를 찾을 수 있어요.",
+        "next": "m8"
+      },
+      "m8": {
+        "ask": "준비됐나요?",
+        "choices": [
+          {
+            "label": "네, 출발할래요!",
+            "next": "go"
+          },
+          {
+            "label": "한 번 더 들을래요",
+            "next": "m4"
+          }
+        ]
+      },
+      "go": {
+        "say": "좋아요! 기록의 문부터 차례로 가 봐요. 막히면 언제든 나에게 와서 E 키를 눌러요."
+      },
+      "skip": {
+        "say": "좋아요, 바로 출발해요! 막히면 언제든 나에게 와서 E 키를 눌러요."
+      }
+    }
+  },
+  "animals": [
+    {
+      "id": "tortoise",
+      "kind": "tortoise",
+      "name": "거북이",
+      "sets": [
+        "roles",
+        "case1"
+      ],
+      "role": "analyze",
+      "drop": "loupe",
+      "chance": 0.2,
+      "perStat": 0.05,
+      "start": "t1",
+      "nodes": {
+        "t1": {
+          "say": "느릿느릿… 안녕! 나는 아주 오래 살 거야.",
+          "next": "t2"
+        },
+        "t2": {
+          "ask": "너도 보존되니? 나는 화석으로 남겨질 거야. 그러면 나도 연구 가치가 생기겠지?",
+          "choices": [
+            {
+              "label": "화석은 아주 오래 걸려 생겨!",
+              "next": "t3"
+            },
+            {
+              "label": "응, 내가 연구해 줄게!",
+              "next": "t4"
+            }
+          ]
+        },
+        "t3": {
+          "say": "우와, 땅속에서 그렇게 오래? 그럼 나는 지금은 건강하게 오래 살래~"
+        },
+        "t4": {
+          "say": "고마워! 그래도 난 지금 살아 있으니까 조심조심 지나가 줘~"
+        }
+      }
+    },
+    {
+      "id": "gull",
+      "kind": "bird",
+      "color": "#f4f1ea",
+      "name": "갈매기",
+      "sets": [
+        "case1"
+      ],
+      "role": "analyze",
+      "drop": "microscope",
+      "chance": 0.1,
+      "perStat": 0.04,
+      "start": "g1",
+      "nodes": {
+        "g1": {
+          "say": "끼룩! 바닷가는 바람에 소금기가 많아.",
+          "next": "g2"
+        },
+        "g2": {
+          "ask": "소금기가 쇠붙이에 닿으면 어떻게 될까?",
+          "choices": [
+            {
+              "label": "녹이 더 빨리 생겨!",
+              "next": "g3"
+            },
+            {
+              "label": "더 반짝반짝해져!",
+              "next": "g4"
+            }
+          ]
+        },
+        "g3": {
+          "say": "끼룩, 맞아! 그래서 바닷가의 쇠붙이는 더 자주 살펴봐야 해."
+        },
+        "g4": {
+          "say": "끼룩? 아니야~ 소금기와 물기는 녹을 더 빨리 생기게 해. 매뉴얼을 펼쳐 봐!"
+        }
+      }
+    },
+    {
+      "id": "cat",
+      "kind": "cat",
+      "name": "박물관 고양이",
+      "sets": [
+        "case2",
+        "case3"
+      ],
+      "role": "material",
+      "drop": "brush",
+      "chance": 0.25,
+      "perStat": 0.05,
+      "start": "c1",
+      "nodes": {
+        "c1": {
+          "say": "냐옹. 나는 이 박물관을 지키는 고양이야.",
+          "next": "c2"
+        },
+        "c2": {
+          "ask": "너도 뭔가를 보존하니? 나는 매일 털을 골라서 나를 보존한다냥!",
+          "choices": [
+            {
+              "label": "나는 문화유산을 보존해!",
+              "next": "c3"
+            },
+            {
+              "label": "털 고르기도 보존이야?",
+              "next": "c4"
+            }
+          ]
+        },
+        "c3": {
+          "say": "멋지다냥! 그럼 진열장 근처에선 뛰지 마. 흔들리면 유물이 다칠 수 있다냥."
+        },
+        "c4": {
+          "say": "히히, 나한텐 보존이다냥. 너희는 유물을 오래오래 지켜 줘!"
+        }
+      }
+    },
+    {
+      "id": "pigeon",
+      "kind": "bird",
+      "color": "#8d96a3",
+      "name": "비둘기",
+      "sets": [
+        "roles",
+        "case4"
+      ],
+      "role": "record",
+      "drop": "tags",
+      "chance": 0.25,
+      "perStat": 0.05,
+      "start": "p1",
+      "nodes": {
+        "p1": {
+          "say": "구구! 나 오늘 하루 종일 여기저기 날아다녔어.",
+          "next": "p2"
+        },
+        "p2": {
+          "ask": "옛 건물 지붕에 앉아도 될까?",
+          "choices": [
+            {
+              "label": "새똥이 돌이나 칠을 상하게 할 수 있대!",
+              "next": "p3"
+            },
+            {
+              "label": "응, 맘껏 앉아!",
+              "next": "p4"
+            }
+          ]
+        },
+        "p3": {
+          "say": "구구, 몰랐어! 그럼 나는 나무 위에 앉을게."
+        },
+        "p4": {
+          "say": "구구? 그런데 새똥이 쌓이면 돌이나 칠이 상할 수 있대. 나는 나무 위에 앉을래~"
+        }
+      }
+    },
+    {
+      "id": "magpie",
+      "kind": "bird",
+      "color": "#1d2a2a",
+      "name": "까치",
+      "sets": [
+        "case4"
+      ],
+      "role": "undo",
+      "drop": "warmer",
+      "chance": 0.15,
+      "perStat": 0.05,
+      "start": "k1",
+      "nodes": {
+        "k1": {
+          "say": "깍깍! 반짝이는 건 다 내 거야!",
+          "next": "k2"
+        },
+        "k2": {
+          "ask": "저 단청(옛 건물의 알록달록한 무늬) 조각, 예뻐서 가져가고 싶은데…",
+          "choices": [
+            {
+              "label": "유물은 보기만 해!",
+              "next": "k3"
+            },
+            {
+              "label": "조금만 가져가!",
+              "next": "k4"
+            }
+          ]
+        },
+        "k3": {
+          "say": "깍깍, 알겠어. 가져가면 제자리를 찾기 어렵겠구나!"
+        },
+        "k4": {
+          "say": "깍? 잠깐! 떨어진 조각도 버리거나 가져가면 안 된대. 제자리를 잃어버리거든!"
+        }
+      }
+    },
+    {
+      "id": "squirrel",
+      "kind": "squirrel",
+      "name": "다람쥐",
+      "sets": [
+        "roles",
+        "case5"
+      ],
+      "role": "record",
+      "drop": "camera",
+      "chance": 0.15,
+      "perStat": 0.05,
+      "start": "s1",
+      "nodes": {
+        "s1": {
+          "say": "찍찍! 큰일 났어. 도토리를 어디에 묻었는지 다 잊어버렸어…",
+          "next": "s2"
+        },
+        "s2": {
+          "ask": "어떻게 하면 다음엔 안 잊어버릴까?",
+          "choices": [
+            {
+              "label": "묻은 곳에 번호를 붙이고 그림으로 남겨!",
+              "next": "s3"
+            },
+            {
+              "label": "그냥 열심히 외워!",
+              "next": "s4"
+            }
+          ]
+        },
+        "s3": {
+          "say": "찍! 기록 담당 같은 생각이다! 다음엔 위치 그림을 꼭 그릴게."
+        },
+        "s4": {
+          "say": "찍찍… 외우기만 하면 또 잊어버릴 것 같아. 그림으로 남겨 볼래!"
+        }
+      }
+    },
+    {
+      "id": "frog",
+      "kind": "frog",
+      "name": "개구리",
+      "sets": [
+        "case5"
+      ],
+      "role": "analyze",
+      "drop": "microscope",
+      "chance": 0.1,
+      "perStat": 0.04,
+      "start": "f1",
+      "nodes": {
+        "f1": {
+          "say": "개굴! 나는 비 오는 날이 제일 좋아.",
+          "next": "f2"
+        },
+        "f2": {
+          "ask": "그런데 돌 틈에 물이 들어갔다가 겨울에 얼면 어떻게 될까?",
+          "choices": [
+            {
+              "label": "얼면서 부피가 커져 틈이 벌어져!",
+              "next": "f3"
+            },
+            {
+              "label": "아무 일도 없어!",
+              "next": "f4"
+            }
+          ]
+        },
+        "f3": {
+          "say": "개굴, 맞아! 그래서 돌탑도 물이 스미지 않게 살펴봐야 해."
+        },
+        "f4": {
+          "say": "개굴~ 물은 얼면 부피가 커져서 돌 틈을 조금씩 벌릴 수 있어. 신기하지?"
+        }
+      }
+    }
+  ]
+}
