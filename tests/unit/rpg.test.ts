@@ -36,6 +36,10 @@ describe('연구원 성장', () => {
     const unlucky = finishTalk(newHero(), turtle, 0.99);
     expect(unlucky.gains.find(g => g.kind === 'roll')).toMatchObject({found: false});
     expect(finishTalk(lucky.hero, turtle, 0).gains).toEqual([]);
+    // 못 찾았으면 다시 이야기할 때 또 확률을 굴린다(경험치는 처음 한 번만)
+    const again = finishTalk(unlucky.hero, turtle, 0);
+    expect(again.gains.some(g => g.kind === 'xp')).toBe(false);
+    expect(again.gains).toContainEqual({kind: 'item', id: turtle.drop});
   });
 
   it('어긋난 저장 기록은 버린다', () => {

@@ -2,22 +2,35 @@ import {el, button, add} from '../ui/dom';
 import {svg} from '../ui/art';
 import {fitStage} from '../ui/stage';
 import {GL} from '../games/labels';
-import {gamesData, gameOf, medals, saveMedal, type Medal, type RustGame, type TransportGame} from '../games/data';
-import * as T from '../games/transport';
-import * as Rg from '../games/rust';
-import {joystick} from '../mission/joystick';
+import {gamesData, gameOf, medals, saveMedal, stageOpen, powerOf, needMet, needHint, type AnyGame, type Medal, type StageNo, type TransportGame, type Power} from '../games/data';
+import type {GameEnv, GameMount} from '../games/env';
+import {mountTransport} from '../games/transport';
+import {mountRust} from '../games/rust';
+import {mountPhoto} from '../games/photo';
+import {mountClimate} from '../games/climate';
+import {mountPeel} from '../games/peel';
+import {mountTower} from '../games/tower';
+import {mountPigment} from '../games/pigment';
 import {rankBadge, starredCases} from '../mission/progress';
 import {roleOf} from '../roles/engine';
 import {roleIcon} from '../roles/webtoon';
 import {RL} from '../roles/labels';
-import {showGains, bagButton} from '../rpg/ui';
-import {award, gainXp, giveItem, rpg} from '../rpg/hero';
-import type {RoleId} from '../roles/engine';
+import {showGains, bagButton, itemIcon} from '../rpg/ui';
+import {award, gainXp, giveItem, itemOf, loadHero, rpg} from '../rpg/hero';
 import '../mission/style.css';
 import '../roles/style.css';
 import '../games/style.css';
 
-/** 훈련장 미니게임(?mode=games, &game=transport|rust) */
+const MOUNTS: Record<string, GameMount> = {
+  transport: mountTransport, rust: mountRust, photo: mountPhoto, climate: mountClimate, peel: mountPeel, tower: mountTower, pigment: mountPigment,
+};
+const KEYS: Record<string, string> = {
+  transport: GL.keysTransport, rust: GL.keysRust, photo: GL.keysPick, climate: GL.keysClimate, peel: GL.keysPeel, tower: GL.keysTower, pigment: GL.keysPick,
+};
+const STAGES: StageNo[] = [1, 2, 3];
+const MOVE = ['arrowup', 'arrowdown', 'arrowleft', 'arrowright', 'w', 'a', 's', 'd', ' '];
+
+/** 훈련장 미니게임(?mode=games, &game=…, &stage=1|2|3) */
 export function mountGames(root: HTMLElement, params: URLSearchParams) {
   document.title = GL.docTitle;
   const stage = el('div', {id: 'stage', class: 'ms gm'});
@@ -26,10 +39,13 @@ export function mountGames(root: HTMLElement, params: URLSearchParams) {
   window.addEventListener('resize', fitStage);
   const id = params.get('game');
   const game = id ? gameOf(id) : undefined;
-  if (game?.id === 'transport') runTransport(stage, game as TransportGame);
-  else if (game?.id === 'rust') runRust(stage, game as RustGame);
+  const n = Number(params.get('stage') ?? 1);
+  const no = (STAGES.includes(n as StageNo) ? n : 1) as StageNo;
+  if (game && MOUNTS[game.id] && stageOpen(medals(), game.id, no)) runGame(stage, game, no);
   else hub(stage);
 }
+
+const gameUrl = (id: string, no: StageNo) => `?mode=games&game=${id}&stage=${no}`;
 
 function hud(stage: HTMLElement, title: string, back: {href: string; label: string}) {
   stage.append(el('div', {class: 'ms-hud'}, add(el('div', {class: 'ms-hud-row'}),
@@ -46,207 +62,187 @@ export function medalIcon(m: Medal | undefined) {
   return s;
 }
 
+/** 가장 높은 열린 단계 */
+const topOpen = (id: string) => [...STAGES].reverse().find(s => stageOpen(medals(), id, s)) ?? 1;
+
 function hub(stage: HTMLElement) {
   hud(stage, gamesData.title, {href: '?mode=mission', label: GL.toMissions});
-  const got = medals();
+  const book = medals();
   stage.append(el('section', {class: 'gm-hub'},
     el('h1', {}, gamesData.title),
     el('p', {class: 'ms-sub'}, gamesData.sub),
     el('div', {class: 'gm-cards'}, ...gamesData.games.map((g, i) => {
       const r = roleOf(g.role)!;
-      return el('a', {class: 'gm-card', href: `?mode=games&game=${g.id}`, 'data-game': g.id, style: `--rc:${r.color}`},
+      return el('div', {class: 'gm-card', 'data-game': g.id, style: `--rc:${r.color}`},
         el('span', {class: 'ms-num'}, i + 1),
         el('span', {class: 'rl-badge'}, roleIcon(r.id, r.color), `${r.name} ${RL.role}`),
-        el('strong', {}, g.name),
+        el('a', {class: 'gm-card-name', href: gameUrl(g.id, topOpen(g.id))}, g.name),
         el('p', {}, g.intro),
-        el('span', {class: 'gm-medal'}, medalIcon(got[g.id]), gamesData.medals[got[g.id] ?? 'none']));
+        el('div', {class: 'gm-stages'}, ...STAGES.map(s => {
+          const m = book[g.id]?.[s];
+          const hard = !!g.stages[s - 1]?.need;
+          return stageOpen(book, g.id, s)
+            ? el('a', {class: 'gm-stage' + (hard ? ' hard' : ''), href: gameUrl(g.id, s), 'data-stage': s, 'data-medal': m ?? 'none', title: g.stages[s - 1].name},
+              medalIcon(m), el('span', {}, `${s}`))
+            : el('span', {class: 'gm-stage locked', 'data-stage': s, title: GL.locked}, el('span', {class: 'gm-lock', 'aria-hidden': 'true'}, '🔒'), el('span', {}, `${s}`));
+        })));
     }))));
   window.addEventListener('keydown', e => {
     const n = Number(e.key);
-    if (Number.isInteger(n) && gamesData.games[n - 1]) location.search = `?mode=games&game=${gamesData.games[n - 1].id}`;
+    const g = gamesData.games[n - 1];
+    if (Number.isInteger(n) && g) location.search = gameUrl(g.id, topOpen(g.id));
     if (e.key === 'Escape') location.search = '?mode=mission';
   });
 }
 
-/** 결과 카드: 메달(또는 다시 도전) + 버튼 */
-function result(stage: HTMLElement, game: {id: string; name: string; role: string; win: string; tip: string}, medal: Medal | null, lose: string, retry: () => void) {
-  const better = medal ? saveMedal(game.id, medal) : false;
-  // RPG: 메달마다 그 역할 경험치, 금메달이면 그 게임의 보상 도구
-  if (medal) setTimeout(() => showGains(stage, award(h => {
-    const a = gainXp(h, game.role as RoleId, rpg.xp.medal[medal]);
-    const b = medal === 'gold' && rpg.gifts.gold[game.id] ? giveItem(a.hero, rpg.gifts.gold[game.id]) : {hero: a.hero, gains: []};
-    return {hero: b.hero, gains: [...a.gains, ...b.gains]};
-  })), 700);
-  const card = el('section', {class: 'ms-card gm-result pop', 'data-testid': 'game-result', 'data-medal': medal ?? 'none'},
-    el('div', {class: 'gm-result-medal'}, medalIcon(medal ?? undefined)),
-    el('h1', {}, medal ? `${gamesData.medals[medal]} · ${GL.medalGot}` : GL.tryAgain),
-    better ? el('p', {class: 'gm-best'}, GL.newBest) : null,
-    el('p', {class: 'ms-sub'}, medal ? game.win : lose),
-    el('p', {class: 'gm-tip'}, game.tip),
-    el('div', {class: 'ms-actions'},
-      el('a', {class: 'ms-btn', href: '?mode=games'}, GL.toHub),
-      button(GL.retry, retry, {class: 'ms-btn primary', 'data-testid': 'retry'})));
-  stage.append(el('div', {class: 'ms-scrim gm-scrim'}), card);
+/** 이 게임에서 힘을 내는 도구(3단계에 필요한 도구들)와 능력치 */
+function powerLine(game: AnyGame, power: Power) {
+  const need = game.stages[2]?.need;
+  if (!need) return null;
+  if (need.items) {
+    const on = need.items.filter(power.has);
+    if (!on.length) return null;
+    return el('p', {class: 'gm-power', 'data-testid': 'power-on'}, ...on.map(id => itemIcon(id)), `${GL.powerOn}: ${on.map(id => itemOf(id)!.name).join(', ')}`);
+  }
+  const s = need.stat!;
+  return el('p', {class: 'gm-power', 'data-testid': 'power-on'}, `${rpg.stats[s.role].name} ${GL.level} ${power.lv(s.role)}`);
 }
 
-function layout(stage: HTMLElement, game: {name: string; howto: string}, keys: string) {
-  hud(stage, game.name, {href: '?mode=games', label: GL.toHub});
-  const canvas = el('canvas', {class: 'gm-canvas', width: 1600, height: 760});
-  const side = el('aside', {class: 'gm-side'});
-  stage.append(el('p', {class: 'gm-howto'}, game.howto), canvas, side, el('div', {class: 'ms-keys'}, keys));
-  return {canvas, side, g: canvas.getContext('2d')!};
+/** 필요한 것이 없을 때: 경고 + 무엇을 어디서 얻는지 */
+function needBox(game: AnyGame, no: StageNo, power: Power) {
+  const need = game.stages[no - 1]?.need;
+  if (!need || needMet(need, power)) return null;
+  const h = needHint(need);
+  return el('div', {class: 'gm-need', 'data-testid': 'need-warning'},
+    el('strong', {}, GL.hard),
+    el('p', {class: 'gm-need-what'}, ...(need.items ?? []).map(id => itemIcon(id)), h.what),
+    el('p', {}, el('b', {}, GL.getFrom), ' ', h.where),
+    need.items ? el('p', {class: 'gm-need-tip'}, GL.equipTip) : null);
 }
 
-function runTransport(stage: HTMLElement, game: TransportGame) {
-  let pack: number | null = null;
-  const choose = () => {
+function runGame(stage: HTMLElement, game: AnyGame, no: StageNo) {
+  const info = game.stages[no - 1];
+  const title = `${game.name} · ${info.name}`;
+  const held = new Set<string>();
+  let onDown: (e: KeyboardEvent) => void = () => {};
+  let onUp: (e: KeyboardEvent) => void = () => {};
+  let dispose: () => void = () => {};
+  let playing = false;
+  let pack = 1;
+
+  window.addEventListener('keydown', e => {
+    const k = e.key.toLowerCase();
+    if (MOVE.includes(k) && playing) { e.preventDefault(); held.add(k); }
+    if (e.key === 'Escape') { location.search = '?mode=games'; return; }
+    if (k === 'r' && playing) { play(); return; }
+    onDown(e);
+  });
+  window.addEventListener('keyup', e => { held.delete(e.key.toLowerCase()); onUp(e); });
+  window.addEventListener('blur', () => held.clear());
+
+  const power = () => powerOf(loadHero());
+
+  // ── 시작 카드: 단계 설명, 필요한 도구 경고, (운반) 포장 고르기 ──
+  const intro = () => {
     stage.replaceChildren();
-    hud(stage, game.name, {href: '?mode=games', label: GL.toHub});
+    hud(stage, title, {href: '?mode=games', label: GL.toHub});
+    const p = power();
+    const start = button(`${GL.play} →`, () => play(), {class: 'ms-btn primary is-next', 'data-testid': 'start-game'});
     let picked = -1;
-    const say = el('p', {class: 'gm-say'});
-    const go = button(GL.depart, () => { if (picked >= 0) { pack = game.packs[picked].shake; play(); } }, {class: 'ms-btn primary', disabled: true, 'data-testid': 'depart'});
-    const buttons = game.packs.map((p, i) => {
-      const b = button('', () => {
-        picked = i;
-        buttons.forEach((x, j) => x.setAttribute('aria-pressed', String(i === j)));
-        say.textContent = p.say;
-        go.disabled = false;
-      }, {class: 'ms-choice', 'data-pack': i, 'aria-pressed': false});
-      b.append(el('span', {class: 'ms-letter'}, 'ABC'[i]), el('strong', {}, p.label));
-      return b;
-    });
-    stage.append(el('div', {class: 'ms-scrim'}), el('section', {class: 'ms-card gm-pack pop'},
-      el('h1', {}, game.name), el('p', {class: 'ms-sub'}, game.intro),
-      el('p', {class: 'ms-label'}, game.packQ), el('div', {class: 'rl-options'}, ...buttons), say,
-      el('div', {class: 'ms-actions'}, go)));
-    onKey = e => {
-      const i = 'ABC'.indexOf(e.key.toUpperCase());
-      if (i >= 0 && buttons[i]) buttons[i].click();
-      if (['PageDown', 'Enter', ' '].includes(e.key) && picked >= 0) { e.preventDefault(); go.click(); }
-    };
+    const card = el('section', {class: 'ms-card gm-pack pop', 'data-testid': 'game-intro', 'data-stage': no},
+      el('p', {class: 'ms-label'}, `${info.name} · ${info.sub}`),
+      el('h1', {}, game.name),
+      el('p', {class: 'ms-sub'}, game.intro),
+      needBox(game, no, p),
+      powerLine(game, p));
+    if (game.id === 'transport') {
+      const t = game as unknown as TransportGame;
+      const say = el('p', {class: 'gm-say'});
+      start.disabled = true;
+      start.classList.remove('is-next');
+      const buttons = t.packs.map((pk, i) => {
+        const b = button('', () => {
+          picked = i;
+          pack = pk.shake;
+          buttons.forEach((x, j) => x.setAttribute('aria-pressed', String(i === j)));
+          say.textContent = pk.say;
+          start.disabled = false;
+          start.classList.add('is-next');
+        }, {class: 'ms-choice', 'data-pack': i, 'aria-pressed': false});
+        b.append(el('span', {class: 'ms-letter'}, 'ABC'[i]), el('strong', {}, pk.label));
+        return b;
+      });
+      card.append(el('p', {class: 'ms-label'}, t.packQ), el('div', {class: 'rl-options gm-packs'}, ...buttons), say);
+      onDown = e => {
+        const i = 'ABC'.indexOf(e.key.toUpperCase());
+        if (i >= 0 && buttons[i]) buttons[i].click();
+        if (['PageDown', 'Enter', ' '].includes(e.key) && picked >= 0) { e.preventDefault(); play(); }
+      };
+    } else {
+      card.append(el('p', {class: 'ms-label'}, GL.howto), el('p', {}, game.howto));
+      onDown = e => { if (['PageDown', 'Enter', ' '].includes(e.key)) { e.preventDefault(); play(); } };
+    }
+    card.append(el('div', {class: 'ms-actions'}, start));
+    stage.append(el('div', {class: 'ms-scrim'}), card);
   };
 
-  let onKey: (e: KeyboardEvent) => void = () => {};
-  let frame = 0;
-  const held = new Set<string>();
-  let joy = {x: 0, y: 0};
+  // ── 한 판 ──
   const play = () => {
-    cancelAnimationFrame(frame);
+    dispose();
+    held.clear();
+    onDown = () => {};
+    onUp = () => {};
     stage.replaceChildren();
-    const {g, side} = layout(stage, game, GL.keysTransport);
-    const meter = el('div', {class: 'gm-meter'}, el('span', {}));
-    const speed = el('strong', {}, '0');
-    const flash = el('p', {class: 'gm-flash'});
-    const stick = joystick(GL.joystick, v => { joy = v; });
-    side.append(el('p', {class: 'ms-label'}, GL.shake), meter, el('p', {class: 'gm-speed'}, `${GL.speed} `, speed), flash, stick.el);
-    let s = T.newTransport();
-    let last = performance.now();
-    const loop = (now: number) => {
-      const dt = Math.min(0.05, (now - last) / 1000);
-      last = now;
-      const k = (a: string, b: string) => (held.has(a) || held.has(b) ? 1 : 0);
-      const ix = k('arrowright', 'd') - k('arrowleft', 'a') + joy.x;
-      const iy = k('arrowdown', 's') - k('arrowup', 'w') - joy.y;
-      const len = Math.hypot(ix, iy);
-      s = T.step(s, len > 1 ? {x: ix / len, y: iy / len} : {x: ix, y: iy}, dt, pack!);
-      T.draw(g, s, game, now / 1000);
-      (meter.firstChild as HTMLElement).style.width = `${s.shake}%`;
-      meter.className = 'gm-meter' + (s.shake > 66 ? ' high' : s.shake > 33 ? ' mid' : '');
-      speed.textContent = String(Math.round(Math.hypot(s.vx, s.vy) / 10));
-      flash.textContent = s.wallFlash > 0 ? game.wall : s.bumpFlash > 0 ? game.bump : '';
-      stage.dataset.shake = String(Math.round(s.shake));
-      stage.dataset.pos = `${Math.round(s.x)},${Math.round(s.y)}`;
-      if (s.done) {
-        stick.release();
-        result(stage, game, s.done === 'win' ? T.medalFor(s.shake) : null, game.lose, play);
-        return;
-      }
-      frame = requestAnimationFrame(loop);
+    for (const k of Object.keys(stage.dataset)) delete stage.dataset[k];
+    hud(stage, title, {href: '?mode=games', label: GL.toHub});
+    const area = el('div', {class: `gm-area gm-${game.id}`, 'data-testid': 'game-area'});
+    const p = power();
+    const side = el('aside', {class: 'gm-side'}, el('p', {class: 'gm-stage-name'}, info.name), powerLine(game, p));
+    stage.append(el('p', {class: 'gm-howto'}, game.howto), area, side, el('div', {class: 'ms-keys'}, KEYS[game.id]));
+    playing = true;
+    let over = false;
+    const env: GameEnv = {
+      game, stage: no, power: p, stageEl: stage, area, side, held, pack,
+      onKey: (down, up) => { onDown = down; onUp = up ?? (() => {}); },
+      end: (medal, why) => {
+        if (over) return;
+        over = true;
+        playing = false;
+        held.clear();
+        dispose();
+        dispose = () => {};
+        result(medal, why);
+      },
     };
-    frame = requestAnimationFrame(loop);
-    onKey = e => { if (e.key.toLowerCase() === 'r') play(); };
+    dispose = MOUNTS[game.id](env);
   };
 
-  const MOVE = ['arrowup', 'arrowdown', 'arrowleft', 'arrowright', 'w', 'a', 's', 'd'];
-  window.addEventListener('keydown', e => {
-    const k = e.key.toLowerCase();
-    if (MOVE.includes(k)) { e.preventDefault(); held.add(k); return; }
-    if (e.key === 'Escape') { location.search = '?mode=games'; return; }
-    onKey(e);
-  });
-  window.addEventListener('keyup', e => held.delete(e.key.toLowerCase()));
-  window.addEventListener('blur', () => held.clear());
-  choose();
-}
-
-function runRust(stage: HTMLElement, game: RustGame) {
-  const scene = Rg.paintScene();
-  let frame = 0;
-  const held = new Set<string>();
-  let joy = {x: 0, y: 0};
-  let onKey: (e: KeyboardEvent) => void = () => {};
-  const play = () => {
-    cancelAnimationFrame(frame);
-    stage.replaceChildren();
-    const {g, side, canvas} = layout(stage, game, GL.keysRust);
-    const count = el('strong', {}, `0 / ${Rg.rustTotal}`);
-    const misses = el('strong', {}, '0');
-    const msg = el('p', {class: 'gm-flash'});
-    const stick = joystick(GL.joystick, v => { joy = v; });
-    side.append(el('p', {class: 'gm-count'}, `${GL.found} `, count), el('p', {class: 'gm-count'}, `${GL.mistakes} `, misses), msg, stick.el);
-    let s = Rg.newRust();
-    const lens = {x: Rg.W / 2, y: Rg.H / 2};
-    const messages = {found: game.found, green: game.green, miss: game.miss};
-    const doMark = () => {
-      s = Rg.mark(s, lens.x, lens.y);
-      count.textContent = `${s.found.length} / ${Rg.rustTotal}`;
-      misses.textContent = String(s.mistakes);
-      msg.textContent = s.lastMsg ? messages[s.lastMsg] : '';
-      msg.className = 'gm-flash ' + (s.lastMsg ?? '');
-      stage.dataset.found = String(s.found.length);
-      if (Rg.isDone(s)) {
-        cancelAnimationFrame(frame);
-        Rg.draw(g, scene, s, lens);
-        stick.release();
-        result(stage, game, Rg.medalFor(s.mistakes), '', play);
-      }
+  // ── 결과 카드 ──
+  const result = (medal: Medal | null, why?: string) => {
+    const better = medal ? saveMedal(game.id, no, medal) : false;
+    if (medal) setTimeout(() => showGains(stage, award(h => {
+      const a = gainXp(h, game.role, rpg.xp.medal[medal]);
+      const gift = rpg.gifts.gold[game.id];
+      const b = medal === 'gold' && gift ? giveItem(a.hero, gift) : {hero: a.hero, gains: []};
+      return {hero: b.hero, gains: [...a.gains, ...b.gains]};
+    })), 700);
+    const next = medal && no < 3 ? (no + 1) as StageNo : null;
+    const retry = button(GL.retry, () => play(), {class: 'ms-btn' + (next ? '' : ' primary'), 'data-testid': 'retry'});
+    const toNext = next ? el('a', {class: 'ms-btn primary', href: gameUrl(game.id, next), 'data-testid': 'next-stage'}, `${GL.nextStage} →`) : null;
+    const card = el('section', {class: 'ms-card gm-result pop', 'data-testid': 'game-result', 'data-medal': medal ?? 'none'},
+      el('div', {class: 'gm-result-medal'}, medalIcon(medal ?? undefined)),
+      el('h1', {}, medal ? `${gamesData.medals[medal]} · ${GL.medalGot}` : GL.tryAgain),
+      better ? el('p', {class: 'gm-best'}, GL.newBest) : null,
+      el('p', {class: 'ms-sub'}, medal ? game.win : (why ?? game.lose ?? '')),
+      medal ? null : needBox(game, no, power()),
+      el('p', {class: 'gm-tip'}, game.tip),
+      el('div', {class: 'ms-actions'}, el('a', {class: 'ms-btn', href: '?mode=games'}, GL.toHub), retry, toNext));
+    stage.append(el('div', {class: 'ms-scrim gm-scrim'}), card);
+    onDown = e => {
+      if (['PageDown', 'Enter', ' '].includes(e.key)) { e.preventDefault(); if (toNext) location.search = gameUrl(game.id, next!); else play(); }
+      if (e.key.toLowerCase() === 'r') play();
     };
-    // 마우스: 무대가 줄어든 만큼 되돌려 그림 좌표로
-    const toCanvas = (e: MouseEvent) => {
-      const r = canvas.getBoundingClientRect();
-      lens.x = Math.max(0, Math.min(Rg.W, ((e.clientX - r.left) / r.width) * Rg.W));
-      lens.y = Math.max(0, Math.min(Rg.H, ((e.clientY - r.top) / r.height) * Rg.H));
-    };
-    canvas.addEventListener('mousemove', toCanvas);
-    canvas.addEventListener('click', e => { toCanvas(e); doMark(); });
-    let last = performance.now();
-    const loop = (now: number) => {
-      const dt = Math.min(0.05, (now - last) / 1000);
-      last = now;
-      const k = (a: string, b: string) => (held.has(a) || held.has(b) ? 1 : 0);
-      lens.x = Math.max(0, Math.min(Rg.W, lens.x + (k('arrowright', 'd') - k('arrowleft', 'a') + joy.x) * 600 * dt));
-      lens.y = Math.max(0, Math.min(Rg.H, lens.y + (k('arrowdown', 's') - k('arrowup', 'w') - joy.y) * 600 * dt));
-      Rg.draw(g, scene, s, lens);
-      stage.dataset.lens = `${Math.round(lens.x)},${Math.round(lens.y)}`;
-      frame = requestAnimationFrame(loop);
-    };
-    frame = requestAnimationFrame(loop);
-    onKey = e => { if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); doMark(); } };
   };
-  const MOVE = ['arrowup', 'arrowdown', 'arrowleft', 'arrowright', 'w', 'a', 's', 'd'];
-  window.addEventListener('keydown', e => {
-    const k = e.key.toLowerCase();
-    if (MOVE.includes(k)) { e.preventDefault(); held.add(k); return; }
-    if (e.key === 'Escape') { location.search = '?mode=games'; return; }
-    onKey(e);
-  });
-  window.addEventListener('keyup', e => held.delete(e.key.toLowerCase()));
-  window.addEventListener('blur', () => held.clear());
-  // 설명 카드 → 시작
-  hud(stage, game.name, {href: '?mode=games', label: GL.toHub});
-  const start = button(GL.play + ' →', play, {class: 'ms-btn primary is-next', 'data-testid': 'start-game'});
-  stage.append(el('div', {class: 'ms-scrim'}), el('section', {class: 'ms-card gm-pack pop'},
-    el('h1', {}, game.name), el('p', {class: 'ms-sub'}, game.intro), el('p', {class: 'ms-label'}, GL.howto), el('p', {}, game.howto),
-    el('div', {class: 'ms-actions'}, start)));
-  onKey = e => { if (['PageDown', 'Enter', ' '].includes(e.key)) { e.preventDefault(); play(); } };
+
+  intro();
 }

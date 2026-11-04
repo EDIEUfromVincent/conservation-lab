@@ -25,7 +25,7 @@ export interface Hero {
   xp: Record<RoleId, number>;
   items: string[];
   equipped: Partial<Record<RoleId, string>>;
-  talked: string[];          // 이야기한 동물(처음 한 번만 경험치·도구 확률)
+  talked: string[];          // 이야기한 동물(경험치는 처음 한 번만, 도구 확률은 얻을 때까지 매번)
   mentorDone: boolean;
 }
 /** 화면에 보여 줄 변화: 경험치, 레벨 업, 새 도구, 도구 찾기 확률 결과 */
@@ -74,13 +74,15 @@ export function equip(prev: Hero, id: string): Hero {
 /** 동물에게서 도구를 찾을 확률: 기본 확률 + 그 역할 능력치 × perStat (최대 90%) */
 export const dropChance = (h: Hero, a: Animal) => Math.min(0.9, a.chance + stat(h, a.role) * a.perStat);
 
-/** 동물과 이야기를 마쳤을 때: 처음이면 경험치 + 확률로 도구. rand는 0~1(테스트에서 고정한다) */
+/** 동물과 이야기를 마쳤을 때: 처음이면 경험치, 그 도구가 아직 없으면 이야기할 때마다 확률로 도구. rand는 0~1(테스트에서 고정한다) */
 export function finishTalk(prev: Hero, a: Animal, rand: number): {hero: Hero; gains: Gain[]} {
-  if (prev.talked.includes(a.id)) return {hero: prev, gains: []};
-  let {hero, gains} = gainXp(prev, a.role, rpg.xp.talk);
-  hero.talked.push(a.id);
+  const first = !prev.talked.includes(a.id);
+  if (!first && prev.items.includes(a.drop)) return {hero: prev, gains: []};
+  let {hero, gains} = first ? gainXp(prev, a.role, rpg.xp.talk) : {hero: structuredClone(prev), gains: [] as Gain[]};
+  if (first) hero.talked.push(a.id);
+  if (hero.items.includes(a.drop)) return {hero, gains};
   const chance = dropChance(hero, a);
-  const found = rand < chance && !hero.items.includes(a.drop);
+  const found = rand < chance;
   gains = [...gains, {kind: 'roll', chance, found}];
   if (found) {
     const r = giveItem(hero, a.drop);
