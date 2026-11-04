@@ -232,3 +232,30 @@ test('다시하기: 사건 파일 하나만 처음부터, 사건 목록에서는
   await open(page, '?mode=mission');
   await expect(page.getByTestId('reset')).toBeVisible();
 });
+
+test('다섯 사건을 모두 해결하면 "축하합니다! 수석 보존과학자가 되었습니다" 화면이 나온다', async ({page}) => {
+  test.setTimeout(300000);
+  await open(page, '?mode=mission');
+  await page.evaluate(() => localStorage.clear());
+  for (const [i, m] of missions.entries()) {
+    await open(page, '?mode=mission&case=' + m.caseId);
+    await expect(page.locator('#stage')).toHaveAttribute('data-screen', 'incident');
+    await play(page, m.caseId, 'B');
+    await expect(page.getByTestId('star-ceremony')).toBeVisible();
+    await expect(page.getByTestId('finale')).toHaveCount(0);
+    await page.keyboard.press('PageDown');
+    if (i < missions.length - 1) await expect(page.getByTestId('finale')).toHaveCount(0);
+  }
+  await expect(page.getByTestId('finale')).toBeVisible();
+  await expect(page.getByTestId('finale')).toContainText('축하합니다!');
+  await expect(page.getByTestId('finale')).toContainText('수석 보존과학자가 되었습니다.');
+  await page.waitForTimeout(2600);
+  mkdirSync('output/playwright', {recursive: true});
+  await page.screenshot({path: 'output/playwright/finale.png'});
+  await page.keyboard.press('PageDown');
+  await expect(page.getByTestId('finale')).toHaveCount(0);
+  // 사건 목록에서 다시 볼 수 있다
+  await open(page, '?mode=mission');
+  await page.getByTestId('finale-again').click();
+  await expect(page.getByTestId('finale')).toBeVisible();
+});

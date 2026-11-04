@@ -365,3 +365,25 @@
 .ms:not(.gm):not(.rl) .ms-hud .ms-file { max-width: 330px; overflow: hidden; text-overflow: ellipsis; }
 .ms:not(.gm):not(.rl) .ms-hud .ms-count { font-size: 22px; padding: 8px 16px; }
 .ms:not(.gm):not(.rl) .ms-hud .ms-count strong { font-size: 24px; }
+
+/* 마지막 축하: 수석 보존과학자 */
+.finale { position: absolute; inset: 0; z-index: 70; overflow: hidden; background: radial-gradient(circle at 50% 30%, #3a2d10 0%, #14100a 75%); animation: scFade .5s ease-out both; }
+.finale .sc-rays { top: 30%; }
+.fn-stars { position: absolute; top: 40px; left: 50%; transform: translateX(-50%); display: flex; gap: 22px; }
+.fn-stars span { width: 110px; height: 110px; animation: scStar .9s cubic-bezier(.2, 1.6, .4, 1) calc(.2s + var(--i) * .18s) both; }
+.fn-stars .star { width: 100%; height: 100%; fill: var(--gold); stroke: #fff6d6; stroke-width: 2.5; filter: drop-shadow(0 0 24px #ffd76a); }
+.fn-body { position: absolute; top: 170px; left: 50%; transform: translateX(-50%); width: 1400px; display: flex; flex-direction: column; align-items: center; gap: 14px; text-align: center; animation: scRise .7s ease-out 1.2s both; }
+.fn-title { font-size: 64px; font-weight: 900; color: #ffe9a8; text-shadow: 0 4px 0 #0008; }
+.fn-line { font-size: 84px; font-weight: 900; color: #fff; text-shadow: 0 6px 0 #0008, 0 0 40px #f2b632aa; animation: stamp .6s cubic-bezier(.2, 1.8, .4, 1) 1.6s both; }
+.fn-sub { font-size: 30px; color: #fff3c4; font-weight: 700; }
+.fn-cert { width: 1000px; background: linear-gradient(#fffdf2, #f6ead0); border: 6px double #b08a3c; border-radius: 18px; padding: 22px 40px; display: flex; flex-direction: column; align-items: center; gap: 8px; box-shadow: 0 14px 0 #0006; color: var(--ink); }
+.fn-cert-title { font-size: 44px; letter-spacing: 18px; color: #7a5a1a; }
+.fn-cert p { font-size: 28px; font-weight: 700; }
+.fn-cert-note { font-size: 20px; color: #7a5a1a; margin-top: -8px; }
+.fn-sign { align-self: flex-end; font-size: 24px !important; color: #5a4a2a; }
+.fn-stats { display: flex; gap: 26px; }
+.fn-stats span { background: #fff3c4; border: 3px solid var(--ink); border-radius: 999px; padding: 8px 24px; font-size: 26px; font-weight: 800; color: var(--ink); }
+.fn-stats strong { font-size: 30px; }
+.ms-finale-btn { background: linear-gradient(#fff3c4, #f2b632) !important; }
+.finale .sc-confetti { z-index: 1; }
+.fn-body, .fn-stars { z-index: 2; }

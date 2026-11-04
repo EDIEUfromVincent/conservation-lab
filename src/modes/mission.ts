@@ -17,6 +17,7 @@ import {npcsFor, npcName, talkTo, showGains, bagButton, openBag} from '../rpg/ui
 import {award, gainXp, giveItem, rpg} from '../rpg/hero';
 import {PL} from '../rpg/labels';
 import {resetButton} from '../rpg/reset';
+import {showFinale, finaleText} from '../mission/finale';
 import {clearMissions, loadMission, missionKey, starredCases, rankBadge, rankOf, rankName, seenStars, markSeen, starIcon, chime} from '../mission/progress';
 import {joystick} from '../mission/joystick';
 import {roleOf} from '../roles/engine';
@@ -63,6 +64,7 @@ function mountHub(root: HTMLElement) {
     el('div', {class: 'ms-actions'},
       el('a', {class: 'ms-btn', href: '?mode=teacher'}, ML.backLesson),
       resetButton(stage, 'missions', () => clearMissions(missions.map(m => m.caseId))),
+      starredCases().length >= 5 ? button(`👑 ${finaleText.again}`, () => showFinale(stage), {class: 'ms-btn ms-finale-btn', 'data-testid': 'finale-again'}) : null,
       el('a', {class: 'ms-btn primary', href: '?mode=games', 'data-testid': 'to-games'}, `🏅 ${ML.games}`))));
   root.replaceChildren(stage);
   fitStage();
@@ -496,7 +498,8 @@ function runMission(root: HTMLElement, caseId: string) {
     const before = rankName(stars - 1), after = rankOf(stars)!;
     const up = before !== after.name;
     chime(up);
-    const close = () => { overlay.remove(); };
+    // 다섯째 별(수석 보존과학자)이면 별 의식을 닫은 뒤 마지막 축하를 띄운다
+    const close = () => { overlay.remove(); if (stars >= 5) showFinale(stage); };
     const overlay = el('div', {class: 'star-ceremony', 'data-testid': 'star-ceremony'},
       el('div', {class: 'sc-rays', 'aria-hidden': 'true'}),
       el('div', {class: 'sc-sparkles', 'aria-hidden': 'true'}, ...Array.from({length: 14}, (_, i) =>
@@ -554,7 +557,7 @@ function runMission(root: HTMLElement, caseId: string) {
       e.preventDefault();
       if (state.screen === 'complete') {
         const ceremony = stage.querySelector('.star-ceremony');
-        if (ceremony) ceremony.remove();
+        if (ceremony) ceremony.querySelector<HTMLButtonElement>('[data-testid=ceremony-close]')?.click();
         else layer.querySelector<HTMLAnchorElement>('[data-testid=next-case]')?.click();
         return;
       }
