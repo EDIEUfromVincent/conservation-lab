@@ -9,7 +9,8 @@ import {mountRust} from '../games/rust';
 import {mountPhoto} from '../games/photo';
 import {mountClimate} from '../games/climate';
 import {mountPeel} from '../games/peel';
-import {mountTower} from '../games/tower';
+import {mountTetris} from '../games/tetris';
+import {mountCatch} from '../games/catch';
 import {rankBadge, starredCases} from '../mission/progress';
 import {roleOf} from '../roles/engine';
 import {roleIcon} from '../roles/webtoon';
@@ -21,10 +22,10 @@ import '../roles/style.css';
 import '../games/style.css';
 
 const MOUNTS: Record<string, GameMount> = {
-  transport: mountTransport, rust: mountRust, photo: mountPhoto, climate: mountClimate, peel: mountPeel, tower: mountTower,
+  transport: mountTransport, rust: mountRust, photo: mountPhoto, climate: mountClimate, peel: mountPeel, tetris: mountTetris, catch: mountCatch,
 };
 const KEYS: Record<string, string> = {
-  transport: GL.keysTransport, rust: GL.keysRust, photo: GL.keysPick, climate: GL.keysClimate, peel: GL.keysPeel, tower: GL.keysTower,
+  transport: GL.keysTransport, rust: GL.keysRust, photo: GL.keysPick, climate: GL.keysClimate, peel: GL.keysPeel, tetris: GL.keysTetris, catch: GL.keysCatch,
 };
 const STAGES: StageNo[] = [1, 2, 3];
 const MOVE = ['arrowup', 'arrowdown', 'arrowleft', 'arrowright', 'w', 'a', 's', 'd', ' '];

@@ -62,8 +62,10 @@ describe('돋보기 녹 찾기', () => {
 // ── 단계와 도구 ──
 import * as C from '../../src/games/climate';
 import * as P from '../../src/games/peel';
-import * as Tw from '../../src/games/tower';
+import * as Tt from '../../src/games/tetris';
+import * as Ca from '../../src/games/catch';
 import * as Ph from '../../src/games/photo';
+import {seeded} from '../../src/games/env';
 import {needMet, needHint, sourcesOf, stageOpen, gameOf, type Power, type StageNo} from '../../src/games/data';
 
 const power = (items: string[] = [], lv: Partial<Record<string, number>> = {}): Power => ({has: id => items.includes(id), lv: r => lv[r] ?? 1});
@@ -191,29 +193,64 @@ describe('살살 떼기', () => {
   });
 });
 
-describe('증거가 있는 층까지만', () => {
-  const g = gameOf('tower') as unknown as {lines: string[]};
-  const dist = (a: string, b: string) => Math.max(...[1, 3, 5].map(i => Math.abs(parseInt(a.slice(i, i + 2), 16) - parseInt(b.slice(i, i + 2), 16))));
-  it('덧쓴 기록은 한 줄만 색이 다르고, 단계가 오를수록 차이가 작아진다', () => {
-    for (const st of [1, 2, 3] as StageNo[]) {
-      const deck = Tw.cards(st, g.lines);
-      expect(deck).toHaveLength(Tw.STAGES[st].n);
-      expect(deck.some(c => c.real)).toBe(true);
-      expect(deck.some(c => !c.real)).toBe(true);
-      for (const c of deck) { expect(c.lines).toHaveLength(3); expect(new Set(c.lines).size).toBe(3); expect(c.real ? c.altered === -1 : c.altered >= 0).toBe(true); }
+describe('유물 조각 테트리스', () => {
+  it('일곱 조각은 네 칸이고, 네 번 돌리면 제자리다', () => {
+    for (let k = 1; k <= 7; k++) {
+      expect(Tt.shape(k, 0)).toHaveLength(4);
+      expect(Tt.shape(k, 4)).toEqual(Tt.shape(k, 0));
     }
-    const base = Tw.inkOf(false, 0);
-    expect(dist(Tw.inkOf(true, Tw.STAGES[1].diff), base)).toBeGreaterThan(30);
-    expect(dist(Tw.inkOf(true, Tw.STAGES[3].diff), base)).toBeLessThanOrEqual(4);
   });
-  it('돋보기·현미경은 3단계의 작은 색 차이를 크게 보여 준다', () => {
-    const base = Tw.inkOf(false, 0);
-    expect(dist(Tw.inkOf(true, Tw.STAGES[3].diff, Tw.magnify(power(['loupe']))), base)).toBeGreaterThanOrEqual(30);
-    expect(Tw.magnify(power(['microscope']))).toBeGreaterThan(Tw.magnify(power(['loupe'])));
-    expect(Tw.canRead(power(['tags']))).toBe(false);
-    expect(Tw.judge(true, true)).toBe('right');
-    expect(Tw.judge(false, true)).toBe('wrongBuild');
-    expect(Tw.judge(true, false)).toBe('wrongSkip');
+  it('한 줄을 채우면 지워지고, 목표 줄 수를 채우면 이긴다', () => {
+    let s = Tt.newTetris(1);
+    // 맨 아래 줄을 I 조각 자리만 남기고 채운다
+    s.grid[Tt.ROWS - 1] = [8, 8, 8, 8, 8, 8, 0, 0, 0, 0];
+    s = {...s, k: 1, r: 0, x: 6, y: 0};
+    s = Tt.hardDrop(s, 1);
+    expect(s.lines).toBe(1);
+    expect(s.done).toBe('win');
+    expect(s.grid[Tt.ROWS - 1].every(v => v === 0)).toBe(true);
+  });
+  it('벽 밖으로는 못 가고, 꼭대기까지 쌓이면 진다', () => {
+    let s = Tt.newTetris(1);
+    for (let i = 0; i < 20; i++) s = Tt.move(s, -1);
+    expect(Tt.collide(s.grid, s.k, s.r, s.x - 1, s.y)).toBe(true);
+    for (let i = 0; i < 60 && !s.done; i++) s = Tt.hardDrop(s, 99);
+    expect(s.done).toBe('lose');
+  });
+  it('3단계는 아래에 깨진 줄 6개가 있고, 되돌리기 솜씨가 높을수록 천천히 떨어진다', () => {
+    expect(Tt.newTetris(3).grid.filter(r => r.some(v => v === 8))).toHaveLength(6);
+    expect(Tt.intervalFor(3, power([], {undo: 3}))).toBeGreaterThan(Tt.intervalFor(3, power([], {undo: 1})) * 2);
+    expect(Tt.intervalFor(3, power())).toBeLessThan(150);
+    expect(gameOf('tetris')!.stages[2].need).toEqual({stat: {role: 'undo', level: 3}});
+  });
+});
+
+describe('하늘에서 떨어지는 유물 조각', () => {
+  const play = (stage: StageNo, aim: (p: Ca.Piece) => boolean) => {
+    const cfg = Ca.STAGES[stage];
+    const rnd = seeded(700 + stage);
+    let s = Ca.newCatch();
+    while (!s.done) {
+      // 바구니 아래로 내려오는 조각 중 받고 싶은 것 아래로, 받기 싫은 것은 피한다
+      const want = s.pieces.filter(aim).sort((a, b) => b.y - a.y)[0];
+      const avoid = s.pieces.filter(p => !aim(p) && p.y > Ca.BASKET_Y - 160).map(p => p.x);
+      let x = want ? want.x : s.basket;
+      if (avoid.some(a => Math.abs(a - x) < Ca.BASKET_W)) x = x < Ca.W / 2 ? x + 300 : x - 300;
+      s = Ca.tick(s, 1 / 60, cfg, x, rnd);
+    }
+    return s;
+  };
+  it('꽃병 조각만 골라 받으면 완성하고, 아무거나 받으면 기회가 줄어든다', () => {
+    const good = play(1, p => p.kind === 'good');
+    expect(good.done).toBe('win');
+    const any = play(2, () => true);
+    expect(any.done).toBe('lose');
+  });
+  it('3단계는 맨눈으로 무늬가 거의 안 보이고, 돋보기·현미경이면 보인다', () => {
+    expect(Ca.sight(Ca.STAGES[3], power())).toBe(0);
+    expect(Ca.sight(Ca.STAGES[3], power(['loupe']))).toBe(1);
+    expect(Ca.sight(Ca.STAGES[3], power(['microscope']))).toBe(2);
+    expect(Ca.STAGES[3].kinds).toEqual(['other']);
   });
 });
 

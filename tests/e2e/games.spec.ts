@@ -28,9 +28,9 @@ async function driveTo(page: Page, key: string, done: (x: number, y: number) => 
 test('훈련장: 일곱 게임이 3단계씩 나오고, 1단계만 열려 있다', async ({page}) => {
   await fresh(page, '?mode=mission');
   await page.getByTestId('to-games').click();
-  await expect(page.locator('.gm-card')).toHaveCount(6);
-  await expect(page.locator('a.gm-stage')).toHaveCount(6);
-  await expect(page.locator('.gm-stage.locked')).toHaveCount(12);
+  await expect(page.locator('.gm-card')).toHaveCount(7);
+  await expect(page.locator('a.gm-stage')).toHaveCount(7);
+  await expect(page.locator('.gm-stage.locked')).toHaveCount(14);
 });
 
 test('안전 운반: 완충재를 고르고 천천히 가면 메달을 받는다, 오류·외부 요청 없음', async ({page}) => {
@@ -76,8 +76,8 @@ test('돋보기 녹 찾기: 붉은 녹만 모두 찾으면 메달, 초록 녹은
 for (const size of [{width: 1920, height: 1080}, {width: 1280, height: 720}]) {
   test(`미니게임 ${size.width}×${size.height}: 카드·그림이 무대 밖으로 나가지 않는다`, async ({page}) => {
     await page.setViewportSize(size);
-    const all = {'cons-lab:games': Object.fromEntries(['transport', 'rust', 'photo', 'climate', 'peel', 'tower'].map(id => [id, {1: 'gold', 2: 'gold'}]))};
-    const qs = ['?mode=games', ...['transport', 'rust', 'photo', 'climate', 'peel', 'tower'].map(id => `?mode=games&game=${id}&stage=3`)];
+    const all = {'cons-lab:games': Object.fromEntries(['transport', 'rust', 'photo', 'climate', 'peel', 'tetris', 'catch'].map(id => [id, {1: 'gold', 2: 'gold'}]))};
+    const qs = ['?mode=games', ...['transport', 'rust', 'photo', 'climate', 'peel', 'tetris', 'catch'].map(id => `?mode=games&game=${id}&stage=3`)];
     for (const q of qs) {
       await fresh(page, q, all);
       const out = await page.evaluate(() => {
@@ -121,18 +121,16 @@ test('3단계: 필요한 도구가 없으면 경고와 얻을 곳을 보여 주�
   await expect(page.getByTestId('need-warning')).toHaveCount(0);
   await expect(page.getByTestId('power-on')).toContainText('돋보기');
   // 잠긴 단계는 훈련장으로 돌아간다
-  await fresh(page, '?mode=games&game=tower&stage=3');
-  await expect(page.locator('.gm-card')).toHaveCount(6);
+  await fresh(page, '?mode=games&game=catch&stage=3');
+  await expect(page.locator('.gm-card')).toHaveCount(7);
 });
 
 test('3단계 실패 카드에도 도구를 얻을 곳을 다시 알려 준다', async ({page}) => {
-  await fresh(page, '?mode=games&game=tower&stage=3', {'cons-lab:games': {tower: {1: 'gold', 2: 'gold'}}});
+  test.setTimeout(60000);
+  await fresh(page, '?mode=games&game=catch&stage=3', {'cons-lab:games': {catch: {1: 'gold', 2: 'gold'}}});
   await page.keyboard.press('PageDown');
-  for (let i = 0; i < 12 && !(await page.getByTestId('game-result').count()); i++) {
-    await page.keyboard.press('a');
-  }
-  await expect(page.getByTestId('game-result')).toBeVisible();
-  // 쌓기만 누르면 상상 카드에서 틀리니, 잘 섞인 판이면 실패한다
+  // 바구니를 가만히 두면 떨어지는 조각을 아무거나 받는다 → 다른 조각 3개면 실패
+  await expect(page.getByTestId('game-result')).toBeVisible({timeout: 50000});
   if ((await page.getByTestId('game-result').getAttribute('data-medal')) === 'none') await expect(page.getByTestId('game-result').getByTestId('need-warning')).toBeVisible();
   const fit = await page.getByTestId('game-result').evaluate(e => e.scrollHeight <= e.clientHeight + 2 && e.getBoundingClientRect().bottom <= document.getElementById('stage')!.getBoundingClientRect().bottom + 1);
   expect(fit).toBe(true);
@@ -161,15 +159,26 @@ test('번호 붙여 사진 찍기: 사진기를 장착하면 처음 모습을 �
   await expect(page.locator('.ph-tag')).toHaveCount(0);
 });
 
-test('증거가 있는 층까지만: 글씨 색이 모두 같은 기록만 쌓으면 금메달', async ({page}) => {
-  await fresh(page, '?mode=games&game=tower');
+test('유물 조각 테트리스: 조각이 떨어져 쌓이고, 키로 옮기고 돌린다', async ({page}) => {
+  await fresh(page, '?mode=games&game=tetris');
   await page.keyboard.press('PageDown');
-  for (let i = 0; i < 6; i++) {
-    const colors = await page.locator('.tw-line').evaluateAll(ls => ls.map(l => getComputedStyle(l).color));
-    expect(colors).toHaveLength(3);
-    await page.keyboard.press(new Set(colors).size === 1 ? 'a' : 'b');
-  }
-  await expect(page.getByTestId('game-result')).toHaveAttribute('data-medal', 'gold');
+  await expect(page.locator('.tt-board')).toBeVisible();
+  await page.keyboard.press('ArrowLeft');
+  await page.keyboard.press('ArrowUp');
+  for (let i = 0; i < 3; i++) await page.keyboard.press(' ');
+  await expect(page.locator('#stage')).toHaveAttribute('data-filled', '12');
+});
+
+test('하늘에서 떨어지는 유물 조각: 바구니가 움직이고 조각을 받는다', async ({page}) => {
+  test.setTimeout(60000);
+  await fresh(page, '?mode=games&game=catch');
+  await page.keyboard.press('PageDown');
+  await expect(page.locator('#stage')).toHaveAttribute('data-basket', '800');
+  await page.keyboard.down('ArrowLeft');
+  await page.waitForTimeout(400);
+  await page.keyboard.up('ArrowLeft');
+  expect(Number(await ds(page, 'basket'))).toBeLessThan(700);
+  await page.waitForFunction(() => Number(document.getElementById('stage')!.dataset.got ?? 0) + Number(document.getElementById('stage')!.dataset.bad ?? 0) > 0 || !!document.querySelector('[data-testid=game-result]'), null, {timeout: 50000});
 });
 
 test('살살 떼기: 초록 칸에서 데우기를 멈추고, 바늘이 초록 칸일 때 떼면 메달', async ({page}) => {

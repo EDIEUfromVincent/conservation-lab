@@ -17,7 +17,8 @@ export interface RustGame extends GameBase {found: string; green: string; miss: 
 export interface PhotoGame extends GameBase {memorize: string; place: string; peek: string; right: string; wrong: string; lose: string}
 export interface ClimateGame extends GameBase {humidity: string; temperature: string; dry: string; wet: string; cool: string; warm: string; events: string[]; danger: string; lose: string}
 export interface PeelGame extends GameBase {heat: string; press: string; tooHot: string; tooCold: string; tooHard: string; tooSoft: string; good: string; lose: string}
-export interface TowerGame extends GameBase {build: string; skip: string; recordTitle: string; lines: string[]; lens: string; right: string; wrongBuild: string; wrongSkip: string; lose: string}
+export interface TetrisGame extends GameBase {next: string; lines: string; line: string; multi: string; lose: string; timeUp: string}
+export interface CatchGame extends GameBase {target: string; targetName: string; score: string; right: string; wrong: string; look: string; lose: string; timeUp: string}
 export type AnyGame = GameBase & Record<string, unknown>;
 export const gamesData = raw as unknown as {title: string; sub: string; medals: Record<Medal | 'none', string>; games: AnyGame[]};
 export const gameOf = (id: string) => gamesData.games.find(g => g.id === id);
