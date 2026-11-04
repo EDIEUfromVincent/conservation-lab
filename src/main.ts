@@ -30,6 +30,7 @@ async function mountExtra(name: string): Promise<boolean> {
 if (mode === 'teacher') mountTeacher(root);
 else if (mode === 'mission') void import('./modes/mission').then(m => m.mountMission(root, params));
 else if (mode === 'roles') void import('./modes/roles').then(m => m.mountRoles(root));
+else if (mode === 'games') void import('./modes/games').then(m => m.mountGames(root, params));
 else if (mode === 'manual') mountManual(root, params);
 else if (mode === 'print') mountPrint(root);
 else {

@@ -1,0 +1,23 @@
+// 훈련장 미니게임 화면 라벨. 게임 설명·대사는 data/games.json.
+export const GL = {
+  docTitle: '훈련장 · 보존과학자의 하루',
+  toMissions: '사건 목록으로',
+  toHub: '훈련장으로',
+  play: '시작',
+  depart: '출발 →',
+  retry: '다시 하기',
+  shake: '흔들림',
+  speed: '속력',
+  found: '찾은 녹',
+  mistakes: '실수',
+  medalGot: '메달을 받았어요!',
+  newBest: '최고 기록!',
+  tryAgain: '다시 도전해요',
+  best: '내 메달',
+  keysTransport: '움직이기: 방향키·WASD·조이스틱 · 다시: R · 나가기: Esc',
+  keysRust: '돋보기: 방향키·마우스·조이스틱 · 표시: 스페이스·클릭 · 나가기: Esc',
+  joystick: '조이스틱: 끌어서 움직여요',
+  howto: '이렇게 해요',
+  bonus: '보너스 미니게임',
+  trainingGround: '훈련장 미니게임',
+} as const;

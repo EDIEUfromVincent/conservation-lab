@@ -12,6 +12,8 @@ import {
   type MissionAction, type MissionState, type MissionClue, type MissionPlace,
 } from '../mission/engine';
 import {mountScene, type SceneHandle} from '../mission/scene';
+import {gamesData} from '../games/data';
+import {loadMission, missionKey, starredCases, rankBadge, rankOf, rankName, seenStars, markSeen, starIcon, chime} from '../mission/progress';
 import {joystick} from '../mission/joystick';
 import {roleOf} from '../roles/engine';
 import {roleIcon} from '../roles/webtoon';
@@ -19,16 +21,7 @@ import '../roles/style.css';
 import '../mission/style.css';
 
 const LETTERS = ['A', 'B', 'C', 'D'] as const;
-const keyOf = (caseId: string) => 'cons-lab:mission:' + caseId;
 const urlOf = (caseId?: string) => '?mode=mission' + (caseId ? '&case=' + caseId : '');
-
-function loadMission(caseId: string): MissionState | null {
-  try {
-    return validMission(JSON.parse(safeGet(keyOf(caseId)) ?? 'null'));
-  } catch {
-    return null;
-  }
-}
 
 /** 3D 미션. ?case=가 없으면 사건 목록, 있으면 그 사건의 미션을 연다. */
 export function mountMission(root: HTMLElement, params: URLSearchParams) {
@@ -48,6 +41,7 @@ function mountHub(root: HTMLElement) {
     const lead = scenario.experts.find(x => x.id === c.lead)!;
     return el('a', {class: 'ms-case' + (done ? ' done' : ''), href: urlOf(m.caseId), 'data-case': m.caseId},
       el('span', {class: 'ms-num'}, i + 1),
+      el('span', {class: 'ms-case-star'}, starIcon(done)),
       el('span', {class: 'ms-case-icon', 'aria-hidden': 'true'}, placeIcon(m.places.find(p => p.slot === 'main')!.icon)),
       el('span', {class: 'ms-band'}, `${ML.file} #${c.order} · ${c.place} · ${c.year}`),
       el('strong', {}, c.title),
@@ -58,10 +52,13 @@ function mountHub(root: HTMLElement) {
         : s && s.screen !== 'incident' ? `${ML.inProgress} · ${ML.clues} ${s.solved.length}/${m.clues.length}` : ML.notStarted));
   });
   stage.append(el('section', {class: 'ms-hub'},
-    el('h1', {}, ML.hubTitle),
-    el('p', {class: 'ms-sub'}, ML.hubSub),
+    el('div', {class: 'ms-hub-head'},
+      el('div', {}, el('h1', {}, ML.hubTitle), el('p', {class: 'ms-sub'}, ML.hubSub)),
+      rankBadge(starredCases().length, {big: true})),
     el('div', {class: 'ms-cases'}, ...cards),
-    el('div', {class: 'ms-actions'}, el('a', {class: 'ms-btn', href: '?mode=teacher'}, ML.backLesson))));
+    el('div', {class: 'ms-actions'},
+      el('a', {class: 'ms-btn', href: '?mode=teacher'}, ML.backLesson),
+      el('a', {class: 'ms-btn primary', href: '?mode=games', 'data-testid': 'to-games'}, `🏅 ${ML.games}`))));
   root.replaceChildren(stage);
   fitStage();
   window.addEventListener('resize', fitStage);
@@ -79,7 +76,7 @@ function mountHub(root: HTMLElement) {
 
 // ── 한 사건의 미션 ──
 function runMission(root: HTMLElement, caseId: string) {
-  const KEY = keyOf(caseId);
+  const KEY = missionKey(caseId);
   let state = loadMission(caseId) ?? initialMission(caseId);
   // 화면에만 쓰는 값: 방금 고른 카드, 실습 기록 저장 여부, 가까이 있는 장소
   const view = {picked: '', pickedOk: false, labReported: false, near: null as string | null, expert: ''};
@@ -165,6 +162,7 @@ function runMission(root: HTMLElement, caseId: string) {
       el('div', {class: 'ms-pill ms-file'}, el('strong', {}, `${ML.file} #${c.order}`), ` · ${c.title}`),
       el('div', {class: 'ms-pill ms-clock'}, scenario.story.clock[c.id as keyof typeof scenario.story.clock] ?? ''),
       el('div', {class: 'ms-hud-right'},
+        el('div', {class: 'ms-pill ms-rank'}, rankBadge(starredCases().length)),
         el('div', {class: 'ms-pill ms-count', 'data-testid': 'fact-count'}, el('span', {class: 'ms-dot fact'}), `${ML.facts} `, el('strong', {}, facts(state).length)),
         el('div', {class: 'ms-pill ms-count'}, el('span', {class: 'ms-dot clue'}), `${ML.clues} `, el('strong', {}, `${state.solved.length}/${m.clues.length}`))));
   }
@@ -441,6 +439,7 @@ function runMission(root: HTMLElement, caseId: string) {
   function completeView() {
     const tries = Object.values(state.tries).reduce((n, x) => n + x.length, 0);
     const nextMission = missions[missions.findIndex(x => x.caseId === caseId) + 1];
+    const bonus = gamesData.games.find(g => g.caseId === caseId);
     layer.append(el('div', {class: 'ms-scrim'}), el('section', {class: 'ms-card ms-complete pop'},
       el('div', {class: 'ms-trophy', 'aria-hidden': 'true'}, '★'),
       el('h1', {}, ML.completeTitle),
@@ -449,12 +448,38 @@ function runMission(root: HTMLElement, caseId: string) {
         el('div', {}, el('strong', {}, `${state.solved.length}/${m.clues.length}`), el('span', {}, ML.stats.clues)),
         el('div', {}, el('strong', {}, tries), el('span', {}, ML.stats.tries)),
         el('div', {}, el('span', {class: 'ms-stat-badges'}, ...m.decisions.map(g => resultBadge(lastOutcome(state, g.id)!.result, true))), el('span', {}, ML.stats.decisions))),
+      bonus ? el('a', {class: 'ms-btn gm-bonus', href: `?mode=games&game=${bonus.id}`, 'data-testid': 'bonus-game'}, `🏅 ${ML.bonusGame}: ${bonus.name}`) : null,
       el('div', {class: 'ms-actions'},
         button(ML.restart, restart, {class: 'ms-btn'}),
         el('a', {class: 'ms-btn', href: urlOf()}, ML.caseList),
         nextMission
           ? el('a', {class: 'ms-btn primary is-next', href: urlOf(nextMission.caseId), 'data-testid': 'next-case'}, ML.nextCase + ' →')
           : el('a', {class: 'ms-btn primary', href: '?mode=teacher'}, ML.backLesson))));
+    if (!seenStars().includes(caseId)) starCeremony();
+  }
+
+  /** 별 의식: 사건을 처음 마쳤을 때 한 번만. 빛줄기 + 반짝이 + 별이 날아와 칸에 박히고, 등급이 오르면 승급 배너. */
+  function starCeremony() {
+    markSeen(caseId);
+    const stars = starredCases().length;
+    const before = rankName(stars - 1), after = rankOf(stars)!;
+    const up = before !== after.name;
+    chime(up);
+    const close = () => { overlay.remove(); };
+    const overlay = el('div', {class: 'star-ceremony', 'data-testid': 'star-ceremony'},
+      el('div', {class: 'sc-rays', 'aria-hidden': 'true'}),
+      el('div', {class: 'sc-sparkles', 'aria-hidden': 'true'}, ...Array.from({length: 14}, (_, i) =>
+        el('span', {style: `--a:${i * (360 / 14)}deg; --d:${180 + (i % 3) * 70}px; --t:${0.2 + (i % 4) * 0.08}s`}, '✦'))),
+      el('div', {class: 'sc-star'}, starIcon(true)),
+      el('div', {class: 'sc-text'},
+        el('p', {class: 'sc-got'}, ML.starGot),
+        el('p', {class: 'sc-case'}, `${ML.file} #${c.order} · ${c.title} ${ML.mastered}`),
+        rankBadge(stars, {big: true}),
+        up ? el('div', {class: 'sc-rankup', 'data-testid': 'rank-up'}, el('strong', {}, ML.rankUp), el('span', {}, `${before} → ${after.name}`), el('em', {}, after.say)) : null,
+        button(ML.keepGoing + ' →', close, {class: 'ms-btn primary', 'data-testid': 'ceremony-close'})),
+      ...(up ? Array.from({length: 28}, (_, i) => el('i', {class: 'sc-confetti', style: `--x:${(i * 67) % 100}vw; --c:${['#f2b632', '#e0533d', '#2f7d6d', '#3a6d93', '#7a5a92'][i % 5]}; --t:${(i % 7) * 0.12}s`})) : []));
+    overlay.querySelector('.rank-badge')?.querySelectorAll('.star')[stars - 1]?.classList.add('new');
+    stage.append(overlay);
   }
 
   function restart() {
@@ -496,7 +521,12 @@ function runMission(root: HTMLElement, caseId: string) {
     if (['PageDown', ' ', 'Enter'].includes(k)) {
       if (k === 'Enter' && document.activeElement instanceof HTMLButtonElement) return;
       e.preventDefault();
-      if (state.screen === 'complete') { layer.querySelector<HTMLAnchorElement>('[data-testid=next-case]')?.click(); return; }
+      if (state.screen === 'complete') {
+        const ceremony = stage.querySelector('.star-ceremony');
+        if (ceremony) ceremony.remove();
+        else layer.querySelector<HTMLAnchorElement>('[data-testid=next-case]')?.click();
+        return;
+      }
       const p = primary(state);
       if (p) dispatch(p);
       else if (state.screen === 'lab' && view.labReported) dispatch({t: 'labDone'});

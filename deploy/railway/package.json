@@ -1,0 +1,8 @@
+{
+  "name": "conservation-lab-classroom",
+  "private": true,
+  "version": "1.0.0",
+  "description": "보존과학자의 하루 교실용 빌드",
+  "scripts": {"start": "node server.js"},
+  "engines": {"node": ">=18"}
+}

@@ -16,6 +16,7 @@
    - `?mode=manual&expert=metal|glass|paint|adhesive` — 학생 기기용 전문가 매뉴얼 + 미니 퀴즈
    - `?mode=print` — 매뉴얼·학습지 인쇄용(학생 기기가 없을 때)
    - `?mode=roles` — 역할 변신 갈래길: 기록·분석·재료·되돌리기 웹툰 4컷 → 퀴즈 → 변신. 데이터는 `data/roles.json`
+   - `?mode=games` — 훈련장 미니게임(안전 운반 · 돋보기 녹 찾기, 메달). 데이터는 `data/games.json`. 등급(별 5개)은 `data/ranks.json`
    - `?mode=mission` — 3D 미션(사건 목록 → `&case=case1~5`). 사건 → 장소(조이스틱으로 걷기) → 단서 → 매뉴얼·연구 일지 카드로 풀기 → 결정. 데이터는 `data/missions.json`
    - `?mode=team&team=1..4` — (P2, 선택) 팀 기기용 실습 샌드박스. 교사 화면과 동기화하지 않는다.
 4. **AI 호출 금지**: API 키를 넣지 않는다. 'AI 조수 점검' 화면은 교사가 수업 전에 실제 생성형 AI에서 캡처해 넣은 텍스트(`data/scenario.json` → `aiCheck.capturedAnswers`, 또는 교사 패널에서 붙여넣기)만 보여준다.
@@ -42,6 +43,7 @@ npm test           # Vitest
 npm run e2e        # Playwright (VITE_EXTRAS=1이면 탐험·4D E2E 포함)
 npm run build:extras       # 탐험·4D 프레임 심화 모드까지 번들
 npm run package:classroom  # classroom/ = index.html + video/
+npm run deploy:railway     # classroom 빌드를 Railway(conservation-lab)에 올린다 → https://conservation-lab-production.up.railway.app (영상 원본 output/seedance-remake/가 이 컴퓨터에 있어야 함)
 ```
 
 ## 작업 방식

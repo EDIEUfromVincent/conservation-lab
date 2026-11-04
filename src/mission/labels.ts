@@ -84,4 +84,9 @@ export const ML = {
   roleSuffix: '담당',
   turn: '차례예요!',
   roleCard: '역할 카드',
+  starGot: '별을 얻었어요!',
+  mastered: '해결 완료!',
+  rankUp: '등급이 올랐어요!',
+  games: '훈련장 미니게임',
+  bonusGame: '보너스 미니게임',
 } as const;

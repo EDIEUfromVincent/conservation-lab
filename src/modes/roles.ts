@@ -6,6 +6,7 @@ import {webtoon, roleIcon} from '../roles/webtoon';
 import {act, initialRoles, primary, roles, roleOf, rolesData, validRoles, ROLE_IDS, ROLE_SLOT, type RoleId, type RolesAction, type RolesState} from '../roles/engine';
 import {mountScene, type SceneHandle} from '../mission/scene';
 import {joystick} from '../mission/joystick';
+import {rankBadge, starredCases} from '../mission/progress';
 import '../mission/style.css';
 import '../roles/style.css';
 
@@ -67,7 +68,7 @@ export function mountRoles(root: HTMLElement) {
     hud.replaceChildren(add(el('div', {class: 'ms-hud-row'}),
       el('a', {class: 'ms-pill ms-list', href: '?mode=teacher'}, `☰ ${RL.backLesson}`),
       el('div', {class: 'ms-pill ms-file'}, el('strong', {}, rolesData.title)),
-      el('div', {class: 'ms-hud-right'}, el('div', {class: 'ms-pill ms-count', 'data-testid': 'role-count'},
+      el('div', {class: 'ms-hud-right'}, el('div', {class: 'ms-pill ms-rank'}, rankBadge(starredCases().length)), el('div', {class: 'ms-pill ms-count', 'data-testid': 'role-count'},
         `${RL.progress} `, el('strong', {}, `${state.done.length}/${ROLE_IDS.length}`)))));
     layer.replaceChildren();
     ({intro: introView, map: mapView, webtoon: webtoonView, quiz: quizView, transform: transformView, done: doneView})[state.screen]();

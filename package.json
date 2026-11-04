@@ -16,7 +16,8 @@
     "typecheck": "tsc --noEmit",
     "gate:frame": "node tools/gate-frame.mjs",
     "package:classroom": "npm run build && node tools/package-classroom.mjs",
-    "build:extras": "VITE_EXTRAS=1 vite build"
+    "build:extras": "VITE_EXTRAS=1 vite build",
+    "deploy:railway": "node tools/deploy-railway.mjs"
   },
   "dependencies": {
     "d3-delaunay": "^6.0.4",

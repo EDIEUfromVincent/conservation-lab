@@ -299,6 +299,14 @@ class Builder {
     tree.add(crown);
     this.scene.add(tree);
   }
+  /** 두 점을 잇는 곧은 길(너비 w). 이음매가 보이지 않게 양 끝을 반 너비만큼 늘린다. */
+  road(x1: number, z1: number, x2: number, z2: number, w: number, color: number) {
+    const dx = x2 - x1, dz = z2 - z1, len = Math.hypot(dx, dz) + w / 2;
+    const m = this.box(this.scene, [(x1 + x2) / 2, 0.12, (z1 + z2) / 2], [w, 0.05, len], color);
+    m.rotation.y = Math.atan2(dx, dz);
+    m.castShadow = false;
+    return m;
+  }
   animate(t: number) { for (const f of this.animations) f(t); }
   onFrame(f: (t: number) => void) { this.animations.push(f); }
 }
@@ -343,7 +351,6 @@ function buildGround(b: Builder, kind: SetSpec['ground']) {
   }
   if (kind === 'field') {
     disk(40, 40, -0.5, C.grass);
-    for (const [x, z, w, d] of [[0, 6, 2.4, 12], [-4.5, 4.5, 9, 2], [4.5, 5.5, 8, 2], [-9.5, 5.5, 2, 2]]) b.box(s, [x, 0.13, z], [w, 0.06, d], 0xd9c79b);
     for (const [x, z, r] of [[-26, -30, 14], [4, -36, 18], [30, -28, 13]]) {
       const hill = new THREE.Mesh(new THREE.IcosahedronGeometry(r, 1), b.mat(0x6f9e6a));
       hill.position.set(x, -r * 0.55, z);
@@ -409,17 +416,26 @@ const SETS: Record<string, SetSpec> = {
   roles: {
     sky: 0xcfe6ee, ground: 'field', mainLook: 2.6, markers: {main: 6.4, detail: 6.4, archive: 6.4, lab: 6.4},
     build(b, places) {
-      // 네 갈래길 끝마다 역할 문: 기둥 두 개 + 역할 색 깃발
+      // 출발점 → 갈림목 → 네 갈래 곧은 길 → 역할 문. 문은 갈림목을 바라본다.
+      const J: [number, number] = [0, 5];
+      const ROAD = 0xe3d1a2;
+      b.road(START[0], START[1] + 2, J[0], J[1], 2.4, ROAD);
+      const hub = new THREE.Mesh(new THREE.CylinderGeometry(2.2, 2.2, 0.05, 28), b.mat(ROAD));
+      hub.position.set(J[0], 0.12, J[1]);
+      b.scene.add(hub);
       for (const p of places) {
+        const at = SLOT[p.slot].at;
         const g = b.group(p.slot);
+        g.rotation.y = Math.atan2(J[0] - at[0], J[1] - at[2]);
         const color = new THREE.Color(p.color ?? '#888888').getHex();
         for (const x of [-1.6, 1.6]) b.box(g, [x, 1.6, 0], [0.5, 3.2, 0.5], 0xe9e1cf);
         b.box(g, [0, 3.4, 0], [4.0, 0.5, 0.7], color);
         b.box(g, [0, 2.6, 0.05], [2.4, 0.9, 0.12], color, {emissive: color, emissiveIntensity: 0.25});
-        b.box(g, [0, 0.05, 1.2], [2.4, 0.1, 2.0], 0xd9c79b);
+        b.box(g, [0, 0.07, 0], [3.0, 0.08, 1.2], 0xcbb88c);   // 문지방
+        // 문 앞에서 갈림목까지 곧은 길
+        const dx = J[0] - at[0], dz = J[1] - at[2], d = Math.hypot(dx, dz);
+        b.road(at[0] + (dx / d) * 0.6, at[2] + (dz / d) * 0.6, J[0], J[1], 2.2, ROAD);
       }
-      for (const [x, z, w, d, r] of [[0, 4, 2.2, 14, 0], [-4.8, 4.2, 2.2, 10, -0.9], [4.2, 2.2, 2.2, 9.5, 0.9], [4.5, 8.2, 2.2, 8.6, 1.25]])
-        b.box(b.scene, [x, 0.13, z], [w, 0.06, d], 0xe3d1a2).rotation.y = r;
     },
   },
   case1: {
@@ -560,6 +576,7 @@ const SETS: Record<string, SetSpec> = {
       archiveHouse(b);
       labTent(b, false);
       for (let i = 0; i < 3; i++) b.box(b.scene, [SLOT.lab.at[0] - 0.8 + i * 0.8, 1.1, SLOT.lab.at[2] + 0.2], [0.4, 0.4 - i * 0.08, 0.4], i === 1 ? C.concrete : C.granite);
+      for (const [x, z, w, d] of [[0, 6, 2.4, 12], [-4.5, 4.5, 9, 2], [4.5, 5.5, 8, 2], [-9.5, 5.5, 2, 2]]) b.box(b.scene, [x, 0.13, z], [w, 0.06, d], 0xd9c79b);
     },
   },
 };

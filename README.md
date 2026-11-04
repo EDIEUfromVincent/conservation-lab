@@ -2,7 +2,7 @@
 
 Vanilla TypeScript/Vite로 구현한 교사용 수업 앱이다. 코딩은 Codex, 계획은 Claude, 개발 서버 운영은 Grok이 담당한다. 아래 설계 자료와 초기 이관 절차는 원본 맥락으로 보존한다. 외부 플러그인을 설치할 필요는 없다.
 
-`npm run package:classroom` 후 **`classroom/index.html`을 열면 오프라인 수업을 진행할 수 있다**(같은 폴더의 `video/`에 아침 영상). 영상 없이 쓰려면 `npm run build` 후 `dist/index.html` 하나만 열어도 된다. 기본 교사 모드, `?mode=manual&expert=metal` 전문가 모드, `?mode=print` 인쇄 모드를 지원한다. 다른 전문 분야는 `glass`, `paint`, `adhesive`다.
+웹 주소: https://conservation-lab-production.up.railway.app (`npm run deploy:railway`로 다시 올림). `npm run package:classroom` 후 **`classroom/index.html`을 열면 오프라인 수업을 진행할 수 있다**(같은 폴더의 `video/`에 아침 영상). 영상 없이 쓰려면 `npm run build` 후 `dist/index.html` 하나만 열어도 된다. 기본 교사 모드, `?mode=manual&expert=metal` 전문가 모드, `?mode=print` 인쇄 모드를 지원한다. 다른 전문 분야는 `glass`, `paint`, `adhesive`다.
 
 - **재설계(우선 적용): [docs/12-redesign.md](docs/12-redesign.md)** — 하루 서사, 알고리즘 귀납, 학생이 만드는 선택 그래프 프로그램. 미결 사항은 그 문서 §12
 - 교사 안내: [docs/TEACHER_GUIDE.md](docs/TEACHER_GUIDE.md)

@@ -156,10 +156,21 @@ test('3D 미션: 사건 목록에서 고르고, 끝나면 다음 사건으로 �
   await page.locator('[data-case="case4"]').click();
   await expect(page.locator('#stage')).toHaveAttribute('data-screen', 'incident');
   await play(page, 'case4', 'B');
+  // 처음 마치면 별 의식: 별 1개, 등급이 오른다. 다음을 한 번 누르면 닫힌다.
+  await expect(page.getByTestId('star-ceremony')).toBeVisible();
+  await expect(page.getByTestId('rank-up')).toBeVisible();
+  await expect(page.getByTestId('star-ceremony').getByTestId('rank')).toHaveAttribute('data-stars', '1');
+  await page.keyboard.press('PageDown');
+  await expect(page.getByTestId('star-ceremony')).toHaveCount(0);
   await page.keyboard.press('PageDown');   // 클리커 '다음' = 다음 사건 파일
   await expect(page).toHaveURL(/case=case5/);
   await page.locator('.ms-list').click();
   await expect(page.locator('[data-case="case4"]')).toHaveClass(/done/);
+  await expect(page.locator('.ms-hub-head [data-testid=rank]')).toHaveAttribute('data-stars', '1');
+  // 같은 사건을 다시 열어 완료 화면을 봐도 의식은 다시 나오지 않는다
+  await page.locator('[data-case="case4"]').click();
+  await expect(page.locator('#stage')).toHaveAttribute('data-screen', 'complete');
+  await expect(page.getByTestId('star-ceremony')).toHaveCount(0);
 });
 
 test('3D 미션: 3D를 띄울 수 없어도 같은 흐름으로 끝난다', async ({page}) => {
