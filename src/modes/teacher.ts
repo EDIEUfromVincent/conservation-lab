@@ -1,4 +1,5 @@
 import {scenario, manuals} from '../content/loadContent';
+import mailsRaw from '../../data/mails.json' with {type: 'json'};
 import {safeGet, safeSet} from '../core/persistence';
 import {add, el, button, field} from '../ui/dom';
 import {L} from '../ui/labels';
@@ -11,13 +12,17 @@ import {illustration} from '../ui/art';
 // 매뉴얼·학습지 인쇄는 ?mode=print.
 
 const MORNING_KEY = 'cons-lab:morning';
+const READ_KEY = 'cons-lab:mail-read';
+const mailsData = mailsRaw as {title: string; arrived: string; inbox: string; from: string; to: string; sign: string; mails: {expert: string; time: string; subject: string; hello: string; bye: string}[]};
 const SCREENS = ['start', 'video', 'clips', 'experts'] as const;
 type Screen = typeof SCREENS[number];
 const SCREEN_ID: Record<Screen, string> = {start: 'S00', video: 'S01', clips: 'S02', experts: 'S03'};
 
 export function mountTeacher(root: HTMLElement) {
   let screen: Screen = 'start';
-  let openExpert: string | null = null;   // ③에서 크게 펼친 전문가
+  // ③ 스승님의 편지: 지금 펼친 편지, 읽은 편지(이 기기에 저장)
+  let openMail = 0;
+  const read = new Set<string>(loadRead());
   const notes: string[] = load();
 
   function load(): string[] {
@@ -29,8 +34,31 @@ export function mountTeacher(root: HTMLElement) {
     }
   }
   const toRoles = () => { location.search = '?mode=roles'; };
-  const go = (next: Screen) => { screen = next; openExpert = null; render(); };
+  const go = (next: Screen) => {
+    screen = next;
+    if (next === 'experts') { openMail = 0; markRead(0); }
+    render();
+  };
+  function loadRead(): string[] {
+    try {
+      const v = JSON.parse(safeGet(READ_KEY) ?? '[]');
+      return Array.isArray(v) ? v.filter(x => typeof x === 'string') : [];
+    } catch {
+      return [];
+    }
+  }
+  function markRead(i: number) {
+    read.add(mailsData.mails[i].expert);
+    safeSet(READ_KEY, JSON.stringify([...read]));
+  }
+  const showMail = (i: number) => { openMail = i; markRead(i); render(); };
+  const unreadLeft = () => mailsData.mails.some(m => !read.has(m.expert));
   const step = (dir: 1 | -1) => {
+    // ③에서는 '다음'이 먼저 안 읽은 편지를 펼친다
+    if (dir === 1 && screen === 'experts') {
+      const unread = mailsData.mails.findIndex(m => !read.has(m.expert));
+      if (unread >= 0) { showMail(unread); return; }
+    }
     const i = SCREENS.indexOf(screen) + dir;
     if (i >= SCREENS.length) toRoles();
     else if (i >= 0) go(SCREENS[i]);
@@ -51,8 +79,7 @@ export function mountTeacher(root: HTMLElement) {
       el('div', {class: 'actions'}, el('a', {href: '?mode=print', target: '_blank', rel: 'noopener'}, L.printLink)),
       el('div', {class: 'actions'},
         screen !== 'start' ? button(L.prev, () => step(-1)) : null,
-        button(last ? L.toRoles + ' →' : L.next, () => step(1), {class: 'primary', 'data-testid': last ? 'to-roles' : 'next'}))));
-    if (openExpert) stage.append(expertDetail(openExpert));
+        button(last && unreadLeft() ? L.nextMail + ' →' : last ? L.toRoles + ' →' : L.next, () => step(1), {class: 'primary', 'data-testid': last ? 'to-roles' : 'next'}))));
     root.replaceChildren(stage);
     fitStage();
   }
@@ -108,45 +135,53 @@ export function mountTeacher(root: HTMLElement) {
       el('p', {class: 'small'}, c.note));
   }
 
-  /** ③ 전문가 4분야를 한 화면에. 카드를 누르거나 1~4를 누르면 그 매뉴얼을 크게 펼친다. */
+  /** ③ 스승님이 보낸 편지 4통: 왼쪽 받은편지함, 오른쪽 펼친 편지(전문가 소개 · 단서 표 · 꼭 기억해요). 내용은 매뉴얼에서 */
   function expertsScreen(main: HTMLElement, title: (text: string, eyebrow: string) => void) {
-    title(L.expertsTitle, `3 · ${L.steps[2]}`);
-    add(main, mentor(scenario.story.mentor.experts),
-      el('div', {class: 'expert-grid'}, ...manuals.manuals.map((m, i) => {
-        const card = button('', () => { openExpert = m.id; render(); }, {class: 'expert-card ' + m.id, 'data-expert': m.id, style: `--c: var(${m.colorToken})`});
-        card.append(
-          el('span', {class: 'expert-head'}, el('span', {class: 'expert-symbol'}, m.symbol), el('strong', {}, m.label), el('span', {class: 'case-no'}, i + 1)),
-          el('span', {class: 'expert-col'}, `${L.clueCol} → ${L.causeCol}`),
-          ...m.clues.map(r => el('span', {class: 'expert-row'}, el('b', {}, r.clue), el('span', {}, `→ ${r.cause}`))));
-        return card;
-      })));
-  }
-
-  function expertDetail(id: string) {
-    const m = manuals.manuals.find(x => x.id === id)!;
-    return el('div', {class: 'expert-detail', role: 'dialog', 'aria-label': m.label, style: `--c: var(${m.colorToken})`},
-      el('div', {class: 'expert-sheet'},
-        el('div', {class: 'expert-head big'}, el('span', {class: 'expert-symbol'}, m.symbol), el('h2', {}, m.label),
-          button(L.close, () => { openExpert = null; render(); }, {class: 'close'})),
-        el('p', {}, m.whoAmI),
+    title(mailsData.title, `3 · ${L.steps[2]}`);
+    const mail = mailsData.mails[openMail];
+    const m = manuals.manuals.find(x => x.id === mail.expert)!;
+    const inbox = el('nav', {class: 'mail-inbox', 'aria-label': mailsData.inbox},
+      el('p', {class: 'mail-inbox-title'}, `✉ ${mailsData.inbox}`),
+      ...mailsData.mails.map((x, i) => {
+        const doc = manuals.manuals.find(d => d.id === x.expert)!;
+        const item = button('', () => showMail(i), {class: 'mail-item' + (i === openMail ? ' on' : '') + (read.has(x.expert) ? ' read' : ''), 'data-mail': x.expert, style: `--c: var(${doc.colorToken})`});
+        add(item, el('span', {class: 'case-no'}, i + 1),
+          el('span', {class: 'mail-item-text'}, el('span', {class: 'mail-from'}, mailsData.from, el('small', {}, x.time)), el('strong', {}, x.subject)),
+          read.has(x.expert) ? null : el('span', {class: 'mail-new', 'aria-label': L.mailNew}, L.mailNewShort));
+        return item;
+      }));
+    const letter = el('article', {class: 'mail-letter pop', 'data-testid': 'mail', 'data-expert': m.id, style: `--c: var(${m.colorToken})`},
+      el('header', {class: 'mail-head'},
+        el('h2', {}, el('span', {class: 'expert-symbol'}, m.symbol), mail.subject),
+        el('p', {class: 'mail-meta'}, `${L.mailFrom} ${mailsData.from} · ${L.mailTo} ${mailsData.to} · ${mail.time}`)),
+      el('p', {class: 'mail-hello'}, mail.hello),
+      el('blockquote', {class: 'mail-quote'}, el('strong', {}, m.label), el('span', {}, m.whoAmI)),
+      el('div', {class: 'mail-cols'},
         el('table', {class: 'expert-table'},
           el('thead', {}, el('tr', {}, el('th', {}, L.clueCol), el('th', {}, L.causeCol), el('th', {}, L.actionCol))),
           el('tbody', {}, ...m.clues.map(r => el('tr', {}, el('td', {}, r.clue), el('td', {}, r.cause), el('td', {}, r.action))))),
-        el('h3', {}, L.ideas),
-        el('ul', {}, ...m.keyIdeas.map(k => el('li', {}, k)))));
+        el('div', {class: 'mail-ideas'}, el('h3', {}, L.ideas), el('ul', {}, ...m.keyIdeas.map(k => el('li', {}, k))))),
+      el('p', {class: 'mail-bye'}, mail.bye),
+      el('p', {class: 'mail-sign'}, mailsData.sign));
+    main.append(el('div', {class: 'mail-app'}, inbox, letter));
+    // 처음 들어오면 '새 편지 도착' 알림
+    if (!arrivedShown) {
+      arrivedShown = true;
+      main.append(el('div', {class: 'mail-arrived', role: 'status'}, `✉ ${mailsData.arrived}`));
+    }
   }
+  let arrivedShown = false;
 
   // 클리커: 다음(PageDown·→·Space), 이전(PageUp·←). ②에서 1~4는 영상, ③에서 1~4는 전문가. 입력칸에서는 멈춘다.
   document.addEventListener('keydown', e => {
     const t = e.target;
     if (t instanceof HTMLInputElement || t instanceof HTMLTextAreaElement || t instanceof HTMLSelectElement) return;
-    if (e.key === 'Escape' && openExpert) { openExpert = null; render(); return; }
     if (['PageDown', 'ArrowRight', ' '].includes(e.key)) { e.preventDefault(); step(1); return; }
     if (['PageUp', 'ArrowLeft'].includes(e.key)) { e.preventDefault(); step(-1); return; }
     const n = Number(e.key);
     if (!Number.isInteger(n) || n < 1 || n > 4) return;
     if (screen === 'clips') openClip(scenario.clips.items[n - 1].url);
-    if (screen === 'experts') { openExpert = manuals.manuals[n - 1].id; render(); }
+    if (screen === 'experts' && mailsData.mails[n - 1]) showMail(n - 1);
   });
   window.addEventListener('resize', fitStage);
   render();

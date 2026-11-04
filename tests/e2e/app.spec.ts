@@ -21,8 +21,9 @@ test('순서: 시작 → ① 아침 영상 → ② 영상 4편 → ③ 전문가
   await expect(page.locator('.clip-card')).toHaveCount(4);
   await page.keyboard.press('PageDown');
   await expect(page.locator('#stage')).toHaveAttribute('data-screen', 'S03');
-  await expect(page.locator('.expert-card')).toHaveCount(4);
-  await page.keyboard.press('PageDown');
+  await expect(page.locator('.mail-item')).toHaveCount(4);
+  // ③에서는 '다음'이 안 읽은 편지를 차례로 펼치고, 다 읽으면 역할 변신으로
+  for (let i = 0; i < 4; i++) await page.keyboard.press('PageDown');
   await expect(page).toHaveURL(/mode=roles/);
   await expect(page.locator('#stage')).toHaveAttribute('data-screen', 'intro');
   expect(errors).toEqual([]);
@@ -42,15 +43,25 @@ test('② 영상 카드와 번호 키는 그 유튜브 영상을 새 탭으로 �
   expect(await page.evaluate(() => (window as unknown as {opened: string[]}).opened)).toEqual(scenario.clips.items.map(x => x.url));
 });
 
-test('③ 전문가 4분야: 번호로 크게 펼치고 Esc로 닫는다', async ({page}) => {
+test('③ 스승님의 편지 4통: 매뉴얼 내용이 편지로 오고, 번호로 펼치며 읽음 표시가 남는다', async ({page}) => {
   await open(page);
+  await page.evaluate(() => localStorage.clear());
+  await page.reload();
   for (let i = 0; i < 3; i++) await page.keyboard.press('PageDown');
-  await page.keyboard.press('2');
-  const sheet = page.locator('.expert-detail');
-  await expect(sheet).toContainText(manuals.manuals[1].label);
-  await expect(sheet.locator('tbody tr')).toHaveCount(manuals.manuals[1].clues.length);
-  await page.keyboard.press('Escape');
-  await expect(sheet).toHaveCount(0);
+  await expect(page.locator('.mail-arrived')).toBeVisible();
+  await expect(page.getByTestId('mail')).toHaveAttribute('data-expert', 'metal');
+  await expect(page.locator('.mail-new')).toHaveCount(3);
+  await page.keyboard.press('3');
+  const m = manuals.manuals.find(x => x.id === 'paint')!;
+  await expect(page.getByTestId('mail')).toHaveAttribute('data-expert', 'paint');
+  await expect(page.getByTestId('mail')).toContainText(m.whoAmI);
+  await expect(page.getByTestId('mail').locator('tbody tr')).toHaveCount(m.clues.length);
+  await expect(page.getByTestId('mail').locator('.mail-ideas li')).toHaveCount(m.keyIdeas.length);
+  await expect(page.locator('.mail-new')).toHaveCount(2);
+  await expect(page.getByTestId('to-roles')).toContainText(L.nextMail);
+  await page.reload();
+  for (let i = 0; i < 3; i++) await page.keyboard.press('PageDown');
+  await expect(page.locator('.mail-new')).toHaveCount(2);   // 읽은 편지는 이 기기에 남는다
 });
 
 test('시작 화면의 사건 파일 1~5 카드가 각 3D 미션을 연다', async ({page}) => {
@@ -116,7 +127,7 @@ for (const size of [{width: 1920, height: 1080}, {width: 1366, height: 768}, {wi
     for (const id of ['S00', 'S01', 'S02', 'S03']) {
       await expect(page.locator('#stage')).toHaveAttribute('data-screen', id);
       expect(await page.locator('main').evaluate(e => e.scrollHeight <= e.clientHeight + 2)).toBe(true);
-      const clipped = await page.locator('.expert-card').evaluateAll(cards => cards.filter(c => c.scrollHeight > c.clientHeight + 2).length);
+      const clipped = await page.locator('.mail-letter, .mail-inbox').evaluateAll(cards => cards.filter(c => c.scrollHeight > c.clientHeight + 2).length);
       expect(clipped).toBe(0);
       if (id !== 'S03') await page.keyboard.press('PageDown');
     }
