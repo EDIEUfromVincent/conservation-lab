@@ -63,7 +63,6 @@ describe('돋보기 녹 찾기', () => {
 import * as C from '../../src/games/climate';
 import * as P from '../../src/games/peel';
 import * as Tw from '../../src/games/tower';
-import * as Pg from '../../src/games/pigment';
 import * as Ph from '../../src/games/photo';
 import {needMet, needHint, sourcesOf, stageOpen, gameOf, type Power, type StageNo} from '../../src/games/data';
 
@@ -175,7 +174,9 @@ describe('살살 떼기', () => {
     expect(window(P.cfgFor(3, power()))).toBeLessThan(40);
     expect(window(P.cfgFor(3, power(['spatula'])))).toBeGreaterThan(100);
     expect(window(P.cfgFor(3, power(['warmer'])))).toBeGreaterThan(100);
-    expect(window(P.cfgFor(1, power()))).toBeGreaterThan(250);
+    // 1단계부터 칸이 좁다(0.1초쯤)
+    expect(window(P.cfgFor(1, power()))).toBeGreaterThan(80);
+    expect(window(P.cfgFor(1, power()))).toBeLessThan(150);
   });
   it('온도와 바늘 자리로 판정한다', () => {
     const c = P.cfgFor(1, power());
@@ -191,33 +192,28 @@ describe('살살 떼기', () => {
 });
 
 describe('증거가 있는 층까지만', () => {
-  const g = gameOf('tower') as unknown as {evidence: string[]; imagined: string[]};
-  it('3단계는 모든 카드가 흐리고, 돋보기·현미경이 있으면 읽힌다', () => {
-    expect(Tw.cards(3, g).every(c => c.blurry)).toBe(true);
-    expect(Tw.cards(1, g).some(c => c.blurry)).toBe(false);
-    expect(Tw.cards(2, g).filter(c => c.blurry)).toHaveLength(3);
-    expect(Tw.canRead(power(['loupe']))).toBe(true);
-    expect(Tw.canRead(power(['tags']))).toBe(false);
+  const g = gameOf('tower') as unknown as {lines: string[]};
+  const dist = (a: string, b: string) => Math.max(...[1, 3, 5].map(i => Math.abs(parseInt(a.slice(i, i + 2), 16) - parseInt(b.slice(i, i + 2), 16))));
+  it('덧쓴 기록은 한 줄만 색이 다르고, 단계가 오를수록 차이가 작아진다', () => {
+    for (const st of [1, 2, 3] as StageNo[]) {
+      const deck = Tw.cards(st, g.lines);
+      expect(deck).toHaveLength(Tw.STAGES[st].n);
+      expect(deck.some(c => c.real)).toBe(true);
+      expect(deck.some(c => !c.real)).toBe(true);
+      for (const c of deck) { expect(c.lines).toHaveLength(3); expect(new Set(c.lines).size).toBe(3); expect(c.real ? c.altered === -1 : c.altered >= 0).toBe(true); }
+    }
+    const base = Tw.inkOf(false, 0);
+    expect(dist(Tw.inkOf(true, Tw.STAGES[1].diff), base)).toBeGreaterThan(30);
+    expect(dist(Tw.inkOf(true, Tw.STAGES[3].diff), base)).toBeLessThanOrEqual(4);
   });
-  it('증거 카드는 증거 문장, 상상 카드는 상상 문장', () => {
-    for (const c of Tw.cards(3, g)) expect((c.real ? g.evidence : g.imagined).includes(c.text)).toBe(true);
+  it('돋보기·현미경은 3단계의 작은 색 차이를 크게 보여 준다', () => {
+    const base = Tw.inkOf(false, 0);
+    expect(dist(Tw.inkOf(true, Tw.STAGES[3].diff, Tw.magnify(power(['loupe']))), base)).toBeGreaterThanOrEqual(30);
+    expect(Tw.magnify(power(['microscope']))).toBeGreaterThan(Tw.magnify(power(['loupe'])));
+    expect(Tw.canRead(power(['tags']))).toBe(false);
     expect(Tw.judge(true, true)).toBe('right');
     expect(Tw.judge(false, true)).toBe('wrongBuild');
     expect(Tw.judge(true, false)).toBe('wrongSkip');
-  });
-});
-
-describe('단청 색가루 맞히기', () => {
-  it('3단계 샘플 색은 거의 같고 알갱이 모양은 모두 다르다', () => {
-    const {samples, answers} = Pg.setup(3);
-    const rgb = (h: string) => [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16));
-    const a = rgb(samples[0].color);
-    for (const s of samples) expect(Math.max(...rgb(s.color).map((v, i) => Math.abs(v - a[i])))).toBeLessThanOrEqual(4);
-    expect(new Set(samples.map(s => s.shape)).size).toBe(4);
-    expect(answers).toHaveLength(6);
-    expect(new Set(answers.slice(0, 4)).size).toBe(4);
-    expect(Pg.canSeeShape(power(['microscope']))).toBe(true);
-    expect(Pg.canSeeShape(power(['loupe']))).toBe(false);
   });
 });
 
@@ -227,6 +223,7 @@ describe('번호 붙여 사진 찍기', () => {
     expect(Ph.pieces(3)).toHaveLength(10);
     expect(new Set(Ph.pieces(3).map(p => p.color)).size).toBe(1);
     expect(Ph.STAGES[3].memo).toBe(1);
+    expect(Ph.TAG_TIME).toBeGreaterThan(0);
     expect(Ph.fits(2, 2)).toBe(true);
     expect(Ph.toolsOf(power(['camera']))).toEqual({tags: false, camera: true});
   });

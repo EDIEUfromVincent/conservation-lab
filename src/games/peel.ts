@@ -10,14 +10,14 @@ import {GL} from './labels';
 
 export interface PeelCfg {blobs: number; lives: number; heatZone: number; heatRate: number; pressZone: number; speed: number}
 export const STAGES: Record<StageNo, PeelCfg> = {
-  1: {blobs: 2, lives: 5, heatZone: 25, heatRate: 35, pressZone: 24, speed: 80},
-  2: {blobs: 3, lives: 4, heatZone: 16, heatRate: 45, pressZone: 16, speed: 110},
-  3: {blobs: 4, lives: 3, heatZone: 7, heatRate: 60, pressZone: 6, speed: 220},
+  1: {blobs: 3, lives: 4, heatZone: 14, heatRate: 45, pressZone: 12, speed: 120},
+  2: {blobs: 4, lives: 3, heatZone: 10, heatRate: 55, pressZone: 9, speed: 160},
+  3: {blobs: 5, lives: 3, heatZone: 6, heatRate: 65, pressZone: 5, speed: 240},
 };
 /** 장착 도구·되돌리기 솜씨에 따라 칸 너비(%)와 빠르기(%/초)를 정한다 */
 export function cfgFor(stage: StageNo, p: Power): PeelCfg {
   const c = {...STAGES[stage]};
-  if (p.has('warmer')) { c.heatZone *= 2.5; c.heatRate *= 0.5; c.pressZone *= 2.5; c.speed *= 0.6; }
+  if (p.has('warmer')) { c.heatZone *= 2.5; c.heatRate *= 0.5; c.pressZone *= 2.5; c.speed *= 0.5; }
   if (p.has('spatula')) { c.heatZone *= 1.8; c.heatRate *= 0.7; c.pressZone *= 3; c.speed *= 0.5; }
   const skill = 1 + Math.min(0.3, 0.06 * (p.lv('undo') - 1));
   c.heatZone = Math.min(40, c.heatZone * skill);

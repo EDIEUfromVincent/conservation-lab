@@ -6,7 +6,8 @@ import {svg} from '../ui/art';
 import {GL} from './labels';
 
 // 번호 붙여 사진 찍기: 깨진 꽃병 조각이 놓인 모습을 잠깐 보여 주고, 섞인 조각을 제자리에 놓는다.
-// 번호표(도구)를 장착하면 조각과 자리에 같은 번호가 붙고, 사진기를 장착하면 처음 모습을 언제든 다시 볼 수 있다.
+// 번호표(도구)를 장착하면 기억하는 동안 조각과 자리에 같은 번호가 붙고 기억 시간이 3초 늘어난다(놓기 시작하면 번호는 사라진다).
+// 사진기를 장착하면 처음 모습을 언제든 다시 볼 수 있다.
 // 3단계는 똑같은 색의 비슷한 조각 10개를 1초만 보여 줘서, 도구 없이는 거의 깰 수 없다.
 
 export interface PhotoCfg {n: number; memo: number; lives: number; similar: boolean; cols: number}
@@ -16,6 +17,7 @@ export const STAGES: Record<StageNo, PhotoCfg> = {
   3: {n: 10, memo: 1, lives: 3, similar: true, cols: 5},
 };
 export const PEEK_MS = 2000;
+export const TAG_TIME = 3;
 export const toolsOf = (p: Power) => ({tags: p.has('tags'), camera: p.has('camera')});
 
 const COLORS = ['#c0622d', '#3a6d93', '#2f7d6d', '#f2b632', '#7a5a92', '#b3372f', '#5fae96', '#9a6b45', '#e07fa0', '#4f6d2f'];
@@ -77,14 +79,13 @@ export const mountPhoto: GameMount = env => {
       const has = placed.has(p.id);
       const slot = el('button', {type: 'button', class: 'ph-slot' + (has ? ' done' : ''), 'data-slot': p.id, 'aria-label': `${p.id + 1}`,
         onclick: () => drop(p.id)});
-      if (has || showAll) slot.append(art(p.id, tools.tags));
-      else if (tools.tags) slot.append(el('span', {class: 'ph-tag big'}, `${p.id + 1}`));
+      if (has || showAll) slot.append(art(p.id, tools.tags && phase === 'memo'));
       if (peeking && !has) slot.classList.add('ghost');
       return slot;
     }));
     tray.replaceChildren(...(phase === 'memo' ? [] : order.filter(id => !placed.has(id)).map(id => {
       const b = el('button', {type: 'button', class: 'ph-piece', 'data-piece': id, 'aria-pressed': picked === id, onclick: () => { picked = id; render(); }});
-      b.append(art(id, tools.tags));
+      b.append(art(id, false));
       return b;
     })));
     env.stageEl.dataset.phase = phase;
@@ -117,7 +118,7 @@ export const mountPhoto: GameMount = env => {
   };
 
   // 기억하기 → 섞기
-  let t = cfg.memo;
+  let t = cfg.memo + (tools.tags ? TAG_TIME : 0);
   banner.textContent = `${game.memorize} ${t}`;
   render();
   const tick = () => {

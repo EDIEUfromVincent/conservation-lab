@@ -1,29 +1,36 @@
 import type {Power, StageNo, TowerGame} from './data';
 import type {GameMount} from './env';
-import {hearts, medalByMistakes, seeded} from './env';
+import {hearts, medalByMistakes, seeded, shuffle} from './env';
 import {el, button, add} from '../ui/dom';
 import {GL} from './labels';
 
-// 증거가 있는 층까지만: 돌탑의 층마다 카드가 있다. 증거가 있는 층이면 쌓고, 상상·짐작이면 뺀다.
-// 2단계는 카드 셋 중 하나, 3단계는 모든 카드 글씨가 흐리다. 돋보기나 현미경을 장착하면 흐린 글씨도 또렷하게 읽힌다.
+// 증거가 있는 층까지만: 층마다 옛 기록 카드가 있다. 어떤 기록에는 나중에 짐작으로 덧쓴 줄이 섞여 있고, 그 줄은 글씨 색이 아주 조금 다르다.
+// 모든 줄의 색이 같으면 쌓고, 색이 다른 줄이 있으면 비워 둔다. 문장 내용으로는 알 수 없고 글씨 색으로만 가려낸다.
+// 단계가 오를수록 색 차이가 줄어든다. 3단계는 맨눈으로 거의 볼 수 없고, 돋보기(×8)·현미경(×12)이 차이를 키워 보여 준다.
 // 3단계를 도구 없이 찍어서 깰 확률은 0.3%쯤(12장 중 1장까지만 틀려야 한다).
 
-export interface TowerCfg {n: number; lives: number; blurEvery: number}   // blurEvery: 0 없음, k면 k장마다 한 장(1이면 모두)
+export interface TowerCfg {n: number; lives: number; diff: number}   // diff: 덧쓴 글씨와 원래 글씨의 색 차이(RGB 거리 비슷한 값)
 export const STAGES: Record<StageNo, TowerCfg> = {
-  1: {n: 6, lives: 3, blurEvery: 0},
-  2: {n: 9, lives: 3, blurEvery: 3},
-  3: {n: 12, lives: 2, blurEvery: 1},
+  1: {n: 6, lives: 3, diff: 46},
+  2: {n: 9, lives: 3, diff: 24},
+  3: {n: 12, lives: 2, diff: 4},
 };
-export const canRead = (p: Power) => p.has('loupe') || p.has('microscope');
+export const INK: [number, number, number] = [43, 38, 34];
+const DIR: [number, number, number] = [1, 0.5, 0.1];        // 덧쓴 글씨는 살짝 갈색 쪽
+export const magnify = (p: Power) => (p.has('microscope') ? 12 : p.has('loupe') ? 8 : 1);
+export const canRead = (p: Power) => magnify(p) > 1;
+const hex = (c: number[]) => '#' + c.map(v => Math.max(0, Math.min(255, Math.round(v))).toString(16).padStart(2, '0')).join('');
+/** 덧쓴 글씨 색: 원래 색에서 diff × 배율만큼 갈색 쪽으로 */
+export const inkOf = (altered: boolean, diff: number, mag = 1) => hex(INK.map((v, i) => v + (altered ? diff * mag * DIR[i] : 0)));
 
-/** 층 카드: 증거 문장(true) 또는 상상 문장(false). 단계마다 늘 같다 */
-export function cards(stage: StageNo, game: Pick<TowerGame, 'evidence' | 'imagined'>) {
+/** 층 기록: 줄 셋, 덧쓴 줄 번호(없으면 −1). 단계마다 늘 같다 */
+export function cards(stage: StageNo, lines: string[]) {
   const c = STAGES[stage];
   const r = seeded(400 + stage);
-  return Array.from({length: c.n}, (_, i) => {
+  return Array.from({length: c.n}, () => {
+    const pick = shuffle(lines, r).slice(0, 3);
     const real = r() < 0.5;
-    const pool = real ? game.evidence : game.imagined;
-    return {real, text: pool[Math.floor(r() * pool.length)], blurry: c.blurEvery > 0 && (i + 1) % c.blurEvery === 0};
+    return {real, lines: pick, altered: real ? -1 : Math.floor(r() * 3)};
   });
 }
 /** 쌓기(true)·빼기(false)가 맞는지 */
@@ -32,8 +39,8 @@ export const judge = (real: boolean, build: boolean) => (real === build ? 'right
 export const mountTower: GameMount = env => {
   const game = env.game as unknown as TowerGame;
   const c = STAGES[env.stage];
-  const deck = cards(env.stage, game);
-  const sharp = canRead(env.power);
+  const deck = cards(env.stage, game.lines);
+  const mag = magnify(env.power);
   let i = 0, mistakes = 0;
   const tower = el('div', {class: 'tw-tower'});
   const card = el('div', {class: 'tw-card', 'data-testid': 'tower-card'});
@@ -47,12 +54,11 @@ export const mountTower: GameMount = env => {
 
   const show = () => {
     const d = deck[i];
-    const blur = d.blurry && !sharp;
     card.replaceChildren();
     add(card,
-      el('p', {class: 'tw-floor'}, `${i + 1}${GL.floor}`),
-      el('p', {class: 'tw-text' + (blur ? ' blur' : ''), 'data-blur': blur}, d.text),
-      d.blurry ? el('p', {class: 'tw-note'}, blur ? game.blurry : `🔍 ${GL.powerOn}`) : null);
+      el('p', {class: 'tw-floor'}, `${game.recordTitle} · ${i + 1}${GL.floor}`),
+      ...d.lines.map((t, k) => el('p', {class: 'tw-line', style: `color:${inkOf(k === d.altered, c.diff, mag)}`}, t)),
+      mag > 1 ? el('p', {class: 'tw-note'}, `🔍 ${game.lens}`) : null);
     env.stageEl.dataset.card = String(i);
   };
   const choose = (b: boolean) => {

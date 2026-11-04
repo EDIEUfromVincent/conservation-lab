@@ -10,7 +10,6 @@ import {mountPhoto} from '../games/photo';
 import {mountClimate} from '../games/climate';
 import {mountPeel} from '../games/peel';
 import {mountTower} from '../games/tower';
-import {mountPigment} from '../games/pigment';
 import {rankBadge, starredCases} from '../mission/progress';
 import {roleOf} from '../roles/engine';
 import {roleIcon} from '../roles/webtoon';
@@ -22,10 +21,10 @@ import '../roles/style.css';
 import '../games/style.css';
 
 const MOUNTS: Record<string, GameMount> = {
-  transport: mountTransport, rust: mountRust, photo: mountPhoto, climate: mountClimate, peel: mountPeel, tower: mountTower, pigment: mountPigment,
+  transport: mountTransport, rust: mountRust, photo: mountPhoto, climate: mountClimate, peel: mountPeel, tower: mountTower,
 };
 const KEYS: Record<string, string> = {
-  transport: GL.keysTransport, rust: GL.keysRust, photo: GL.keysPick, climate: GL.keysClimate, peel: GL.keysPeel, tower: GL.keysTower, pigment: GL.keysPick,
+  transport: GL.keysTransport, rust: GL.keysRust, photo: GL.keysPick, climate: GL.keysClimate, peel: GL.keysPeel, tower: GL.keysTower,
 };
 const STAGES: StageNo[] = [1, 2, 3];
 const MOVE = ['arrowup', 'arrowdown', 'arrowleft', 'arrowright', 'w', 'a', 's', 'd', ' '];
