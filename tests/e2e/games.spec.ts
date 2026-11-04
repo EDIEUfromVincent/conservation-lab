@@ -150,6 +150,21 @@ test('번호 붙여 사진 찍기: 번호표는 기억하는 동안만 보이고
   await page.screenshot({path: 'output/playwright/game-photo-result.png'});
 });
 
+test('번호 붙여 사진 찍기: 모두 놓은 뒤에야 맞는지 알려 주고, 틀린 조각만 돌아온다', async ({page}) => {
+  await fresh(page, '?mode=games&game=photo');
+  await page.keyboard.press('PageDown');
+  await expect(page.locator('#stage')).toHaveAttribute('data-phase', 'place', {timeout: 8000});
+  const put = async (piece: number, slot: number) => { await page.locator(`.ph-piece[data-piece="${piece}"]`).click(); await page.locator(`.ph-slot[data-slot="${slot}"]`).click(); };
+  await put(0, 0); await put(1, 2); await put(2, 1);
+  await expect(page.locator('.ph-mark')).toHaveCount(0);           // 아직 다 놓지 않았으면 말하지 않는다
+  await put(3, 3);
+  await expect(page.locator('.ph-slot.wrong')).toHaveCount(2);
+  await expect(page.locator('.ph-slot.right')).toHaveCount(2);
+  await expect(page.locator('.ph-piece')).toHaveCount(2, {timeout: 4000});   // 틀린 두 조각이 돌아온다
+  await put(1, 1); await put(2, 2);
+  await expect(page.getByTestId('game-result')).toHaveAttribute('data-medal', 'silver');
+});
+
 test('번호 붙여 사진 찍기: 사진기를 장착하면 처음 모습을 다시 볼 수 있다', async ({page}) => {
   await fresh(page, '?mode=games&game=photo', {'cons-lab:hero': hero(['camera'], {record: 'camera'})});
   await page.keyboard.press('PageDown');
@@ -204,4 +219,31 @@ test('전시실 습도 지키기: 기계 버튼과 키로 바늘이 움직이고
   await page.waitForTimeout(2500);
   await expect(page.locator('.cl-banner')).not.toBeEmpty();
   expect(Number(await ds(page, 'out'))).toBeGreaterThanOrEqual(0);
+});
+
+test('다시하기: 이번 게임 메달만 지우거나, 처음부터 모든 기록을 지운다', async ({page}) => {
+  const store = {'cons-lab:games': {rust: {1: 'gold', 2: 'gold'}, photo: {1: 'silver'}}, 'cons-lab:hero': hero(['loupe'], {analyze: 'loupe'}, {analyze: 100})};
+  await fresh(page, '?mode=games&game=rust&stage=2', store);
+  // 이번 활동: 녹 찾기 메달만 지워지고 1단계로 돌아간다(잠긴 단계는 훈련장으로)
+  await page.getByTestId('reset').click();
+  await expect(page.getByTestId('reset-modal')).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(page.getByTestId('reset-modal')).toHaveCount(0);
+  await page.getByTestId('reset').click();
+  await page.keyboard.press('1');
+  await expect(page.locator('.gm-card')).toHaveCount(7);
+  const games = await page.evaluate(() => JSON.parse(localStorage.getItem('cons-lab:games')!));
+  expect(games).toEqual({photo: {1: 'silver'}});
+  expect(await page.evaluate(() => localStorage.getItem('cons-lab:hero'))).not.toBeNull();
+  // 처음부터: 확인 한 번 더 → 모든 기록을 지우고 갈래길로
+  await page.getByTestId('reset').click();
+  await page.getByTestId('reset-all').click();
+  await page.getByTestId('reset-no').click();
+  await expect(page.getByTestId('reset-activity')).toBeVisible();
+  await page.getByTestId('reset-all').click();
+  await page.getByTestId('reset-yes').click();
+  await expect(page).toHaveURL(/mode=roles/);
+  const left = await page.evaluate(() => ({games: localStorage.getItem('cons-lab:games'), hero: JSON.parse(localStorage.getItem('cons-lab:hero') ?? 'null')}));
+  expect(left.games).toBeNull();
+  expect(left.hero?.items ?? []).toEqual([]);
 });

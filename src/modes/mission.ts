@@ -16,7 +16,8 @@ import {gamesData} from '../games/data';
 import {npcsFor, npcName, talkTo, showGains, bagButton, openBag} from '../rpg/ui';
 import {award, gainXp, giveItem, rpg} from '../rpg/hero';
 import {PL} from '../rpg/labels';
-import {loadMission, missionKey, starredCases, rankBadge, rankOf, rankName, seenStars, markSeen, starIcon, chime} from '../mission/progress';
+import {resetButton} from '../rpg/reset';
+import {clearMissions, loadMission, missionKey, starredCases, rankBadge, rankOf, rankName, seenStars, markSeen, starIcon, chime} from '../mission/progress';
 import {joystick} from '../mission/joystick';
 import {roleOf} from '../roles/engine';
 import {roleIcon} from '../roles/webtoon';
@@ -61,6 +62,7 @@ function mountHub(root: HTMLElement) {
     el('div', {class: 'ms-cases'}, ...cards),
     el('div', {class: 'ms-actions'},
       el('a', {class: 'ms-btn', href: '?mode=teacher'}, ML.backLesson),
+      resetButton(stage, 'missions', () => clearMissions(missions.map(m => m.caseId))),
       el('a', {class: 'ms-btn primary', href: '?mode=games', 'data-testid': 'to-games'}, `🏅 ${ML.games}`))));
   root.replaceChildren(stage);
   fitStage();
@@ -180,6 +182,7 @@ function runMission(root: HTMLElement, caseId: string) {
       el('div', {class: 'ms-pill ms-file'}, el('strong', {}, `${ML.file} #${c.order}`), ` · ${c.title}`),
       el('div', {class: 'ms-pill ms-clock'}, scenario.story.clock[c.id as keyof typeof scenario.story.clock] ?? ''),
       el('div', {class: 'ms-hud-right'},
+        resetButton(stage, 'case', () => clearMissions([caseId]), true),
         bagButton(stage),
         el('div', {class: 'ms-pill ms-rank'}, rankBadge(starredCases().length)),
         el('div', {class: 'ms-pill ms-count', 'data-testid': 'fact-count'}, el('span', {class: 'ms-dot fact'}), `${ML.facts} `, el('strong', {}, facts(state).length)),

@@ -1,12 +1,14 @@
 import type {Medal, StageNo, TransportGame, Power} from './data';
 import type {GameMount} from './env';
-import {el} from '../ui/dom';
+import {el, add} from '../ui/dom';
 import {GL} from './labels';
 import {joystick} from '../mission/joystick';
 
 // 안전 운반: 위에서 내려다본 S자 복도. 수레를 몰아 분석실까지 간다.
-// 문턱을 빨리 넘거나 벽에 부딪히면 흔들림이 쌓이고, 100이 되면 다시 한다. 포장(완충재)이 흔들림을 줄인다.
-// 2·3단계는 문턱이 많고, 문턱을 넘을 때마다 조금씩 흔들린다(천천히 가도). 3단계는 완충재(도구)가 없으면 반드시 100을 넘는다.
+// 규칙은 두 가지뿐이다: ① 노란 문턱 위에서 '안전 속력'(속력 막대의 초록 선)보다 빠르면 흔들린다. ② 벽에 부딪히면 흔들린다.
+// 흔들림이 100이 되면 다시 한다. 포장이 흔들림의 크기를 정한다.
+// 2·3단계는 문턱이 많고 안전 속력이 낮으며 시간 제한이 있다. 완충재를 장착하면 안전 속력이 크게 올라간다.
+// 3단계는 완충재 없이는 문턱마다 너무 천천히 가야 해서 시간 안에 도착할 수 없다.
 
 export const W = 1600, H = 760;
 type Rect = [number, number, number, number];   // x1, y1, x2, y2
@@ -15,22 +17,24 @@ const B1: Rect[] = [[330, 80, 356, 240], [400, 400, 560, 426], [790, 520, 816, 6
 const B2: Rect[] = [...B1, [200, 80, 226, 240], [400, 250, 560, 276], [620, 520, 646, 680], [1040, 440, 1200, 466]];
 const B3: Rect[] = [...B2, [1300, 80, 1326, 240], [960, 520, 986, 680], [1040, 370, 1200, 396], [400, 325, 560, 351]];
 const START = {x: 120, y: 160}, GOAL_X = 1440, R = 28;
-const MAX = 340, ACCEL = 900;
+export const MAX = 340;
+const ACCEL = 900;
 
-/** 단계 설정: 문턱, 흔들림 배수, 문턱 하나를 넘을 때 늘 생기는 흔들림, 문턱에서 더 흔들리기 시작하는 속력, 메달 기준 */
-export interface TransportCfg {bumps: Rect[]; mult: number; bumpHit: number; bumpV: number; medal: [number, number]}
+/** 단계 설정: 문턱, 흔들림 배수, 안전 속력(px/초), 시간 제한(초, 0이면 없음), 메달 기준 */
+export interface TransportCfg {bumps: Rect[]; mult: number; safe: number; time: number; medal: [number, number]}
 const STAGE: Record<StageNo, Omit<TransportCfg, 'mult'> & {base: number}> = {
-  1: {bumps: B1, base: 1, bumpHit: 0, bumpV: 110, medal: [25, 55]},
-  2: {bumps: B2, base: 1.5, bumpHit: 5, bumpV: 90, medal: [45, 75]},
-  3: {bumps: B3, base: 2.6, bumpHit: 8, bumpV: 70, medal: [40, 70]},
+  1: {bumps: B1, base: 1, safe: 110, time: 0, medal: [25, 55]},
+  2: {bumps: B2, base: 1.3, safe: 90, time: 70, medal: [25, 55]},
+  3: {bumps: B3, base: 1.6, safe: 30, time: 0, medal: [25, 55]},
 };
-/** 완충재를 장착하면 흔들림 ×0.3, 재료 감각 레벨마다 4%씩 덜(최대 10%) */
-export const CUSHION = 0.3;
+/** 완충재: 안전 속력 +CUSHION. 재료 감각 레벨마다 +3(최대 +12) */
+export const CUSHION = 130;
 export function cfgFor(stage: StageNo, pack: number, power: Power): TransportCfg {
   const c = STAGE[stage];
-  const skill = Math.max(0.9, 1 - 0.04 * (power.lv('material') - 1));
-  return {...c, mult: pack * c.base * (power.has('cushion') ? CUSHION : 1) * skill};
+  const skill = Math.min(12, 3 * (power.lv('material') - 1));
+  return {...c, mult: pack * c.base, safe: c.safe + (power.has('cushion') ? CUSHION : 0) + skill, time: stage === 3 ? STAGE3_TIME : c.time};
 }
+export const STAGE3_TIME = 28;
 export const STAGE1: TransportCfg = {...STAGE[1], mult: 1};
 
 export interface TransportState {x: number; y: number; vx: number; vy: number; shake: number; done: 'win' | 'lose' | null; hitCool: number; bumpFlash: number; wallFlash: number; inBump: number}
@@ -66,10 +70,8 @@ export function step(prev: TransportState, input: {x: number; y: number}, dt: nu
   else { hit(speed); s.vx *= -0.3; s.vy *= -0.3; }
   const v = Math.hypot(s.vx, s.vy);
   const b = cfg.bumps.findIndex(r => inside(s.x, s.y, r));
-  if (b >= 0 && b !== s.inBump && cfg.bumpHit) { s.shake += cfg.bumpHit * m; s.bumpFlash = 0.8; }
   s.inBump = b;
-  if (b >= 0 && v > cfg.bumpV) { s.shake += (v - cfg.bumpV) * 1.3 * m * dt; s.bumpFlash = 0.8; }
-  if (v > 260) s.shake += (v - 260) * 0.05 * m * dt;
+  if (b >= 0 && v > cfg.safe) { s.shake += (v - cfg.safe) * 1.3 * m * dt; s.bumpFlash = 0.8; }
   s.shake = Math.min(100, s.shake);
   if (s.shake >= 100) s.done = 'lose';
   else if (s.x > GOAL_X && s.y < 240) s.done = 'win';
@@ -84,13 +86,17 @@ export const mountTransport: GameMount = env => {
   env.area.append(canvas);
   const g = canvas.getContext('2d')!;
   const meter = el('div', {class: 'gm-meter'}, el('span', {}));
-  const speed = el('strong', {}, '0');
+  const fill = el('span', {class: 'tr-fill'});
+  const speedBar = el('div', {class: 'tr-speed'}, fill, el('i', {class: 'tr-safe', style: `left:${Math.min(100, (cfg.safe / MAX) * 100)}%`}));
   const flash = el('p', {class: 'gm-flash'});
+  const clock = el('strong', {});
   let joy = {x: 0, y: 0};
   const stick = joystick(GL.joystick, v => { joy = v; });
-  env.side.append(el('p', {class: 'ms-label'}, GL.shake), meter, el('p', {class: 'gm-speed'}, `${GL.speed} `, speed), flash, stick.el);
+  add(env.side, el('p', {class: 'ms-label'}, GL.shake), meter, el('p', {class: 'ms-label'}, `${GL.speed} · ${GL.safeLine}`), speedBar,
+    cfg.time ? el('p', {class: 'gm-count'}, `${GL.time} `, clock) : null, flash, stick.el);
   let s = newTransport();
-  let last = performance.now();
+  const t0 = performance.now();
+  let last = t0;
   let frame = 0;
   const loop = (now: number) => {
     const dt = Math.min(0.05, (now - last) / 1000);
@@ -103,11 +109,18 @@ export const mountTransport: GameMount = env => {
     draw(g, s, game, now / 1000, cfg.bumps);
     (meter.firstChild as HTMLElement).style.width = `${s.shake}%`;
     meter.className = 'gm-meter' + (s.shake > 66 ? ' high' : s.shake > 33 ? ' mid' : '');
-    speed.textContent = String(Math.round(Math.hypot(s.vx, s.vy) / 10));
+    const v = Math.hypot(s.vx, s.vy);
+    fill.style.width = `${(v / MAX) * 100}%`;
+    fill.classList.toggle('over', v > cfg.safe);
     flash.textContent = s.wallFlash > 0 ? game.wall : s.bumpFlash > 0 ? game.bump : '';
     env.stageEl.dataset.shake = String(Math.round(s.shake));
     env.stageEl.dataset.pos = `${Math.round(s.x)},${Math.round(s.y)}`;
     if (s.done) { env.end(s.done === 'win' ? medalFor(s.shake, cfg) : null); return; }
+    if (cfg.time) {
+      const left = cfg.time - (now - t0) / 1000;
+      clock.textContent = `${Math.max(0, Math.ceil(left))}`;
+      if (left <= 0) { env.end(null, game.timeUp); return; }
+    }
     frame = requestAnimationFrame(loop);
   };
   frame = requestAnimationFrame(loop);

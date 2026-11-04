@@ -2,7 +2,7 @@ import {el, button, add} from '../ui/dom';
 import {svg} from '../ui/art';
 import {fitStage} from '../ui/stage';
 import {GL} from '../games/labels';
-import {gamesData, gameOf, medals, saveMedal, stageOpen, powerOf, needMet, needHint, type AnyGame, type Medal, type StageNo, type TransportGame, type Power} from '../games/data';
+import {gamesData, gameOf, medals, saveMedal, clearMedals, stageOpen, powerOf, needMet, needHint, type AnyGame, type Medal, type StageNo, type TransportGame, type Power} from '../games/data';
 import type {GameEnv, GameMount} from '../games/env';
 import {mountTransport} from '../games/transport';
 import {mountRust} from '../games/rust';
@@ -17,6 +17,7 @@ import {roleIcon} from '../roles/webtoon';
 import {RL} from '../roles/labels';
 import {showGains, bagButton, itemIcon} from '../rpg/ui';
 import {award, gainXp, giveItem, itemOf, loadHero, rpg} from '../rpg/hero';
+import {resetButton} from '../rpg/reset';
 import '../mission/style.css';
 import '../roles/style.css';
 import '../games/style.css';
@@ -47,11 +48,11 @@ export function mountGames(root: HTMLElement, params: URLSearchParams) {
 
 const gameUrl = (id: string, no: StageNo) => `?mode=games&game=${id}&stage=${no}`;
 
-function hud(stage: HTMLElement, title: string, back: {href: string; label: string}) {
+function hud(stage: HTMLElement, title: string, back: {href: string; label: string}, gameId?: string) {
   stage.append(el('div', {class: 'ms-hud'}, add(el('div', {class: 'ms-hud-row'}),
     el('a', {class: 'ms-pill ms-list', href: back.href}, `☰ ${back.label}`),
     el('div', {class: 'ms-pill ms-file'}, el('strong', {}, title)),
-    el('div', {class: 'ms-hud-right'}, bagButton(stage), el('div', {class: 'ms-pill ms-rank'}, rankBadge(starredCases().length))))));
+    el('div', {class: 'ms-hud-right'}, resetButton(stage, gameId ? 'game' : 'games', () => clearMedals(gameId)), bagButton(stage), el('div', {class: 'ms-pill ms-rank'}, rankBadge(starredCases().length))))));
 }
 
 export function medalIcon(m: Medal | undefined) {
@@ -145,7 +146,7 @@ function runGame(stage: HTMLElement, game: AnyGame, no: StageNo) {
   // ── 시작 카드: 단계 설명, 필요한 도구 경고, (운반) 포장 고르기 ──
   const intro = () => {
     stage.replaceChildren();
-    hud(stage, title, {href: '?mode=games', label: GL.toHub});
+    hud(stage, title, {href: '?mode=games', label: GL.toHub}, game.id);
     const p = power();
     const start = button(`${GL.play} →`, () => play(), {class: 'ms-btn primary is-next', 'data-testid': 'start-game'});
     let picked = -1;
@@ -194,7 +195,7 @@ function runGame(stage: HTMLElement, game: AnyGame, no: StageNo) {
     onUp = () => {};
     stage.replaceChildren();
     for (const k of Object.keys(stage.dataset)) delete stage.dataset[k];
-    hud(stage, title, {href: '?mode=games', label: GL.toHub});
+    hud(stage, title, {href: '?mode=games', label: GL.toHub}, game.id);
     const area = el('div', {class: `gm-area gm-${game.id}`, 'data-testid': 'game-area'});
     const p = power();
     const side = el('aside', {class: 'gm-side'}, el('p', {class: 'gm-stage-name'}, info.name), powerLine(game, p));

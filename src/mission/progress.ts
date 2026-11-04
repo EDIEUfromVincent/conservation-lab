@@ -1,5 +1,5 @@
 import raw from '../../data/ranks.json' with {type: 'json'};
-import {safeGet, safeSet} from '../core/persistence';
+import {safeGet, safeSet, safeRemove} from '../core/persistence';
 import {el} from '../ui/dom';
 import {svg} from '../ui/art';
 import {missions, validMission, type MissionState} from './engine';
@@ -35,6 +35,13 @@ export function seenStars(): string[] {
 export function markSeen(caseId: string) {
   const seen = seenStars();
   if (!seen.includes(caseId)) safeSet(SEEN_KEY, JSON.stringify([...seen, caseId]));
+}
+
+/** 다시하기: 이 사건(없으면 모든 사건)의 기록과 별 의식 기록을 지운다 */
+export function clearMissions(caseIds: string[]) {
+  for (const id of caseIds) safeRemove(missionKey(id));
+  const left = seenStars().filter(id => !caseIds.includes(id));
+  safeSet(SEEN_KEY, JSON.stringify(left));
 }
 
 export function starIcon(filled: boolean) {

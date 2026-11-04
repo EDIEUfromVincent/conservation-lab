@@ -64,3 +64,17 @@
 
 /* 대화 중에는 지도 패널·조이스틱·알림을 숨긴다 */
 .talking .ms-side, .talking .ms-joy, .talking .ms-enter, .talking .ms-layer > .ms-mentor, .talking .ms-keys { display: none; }
+
+/* 다시하기 */
+.rs-btn { pointer-events: auto; cursor: pointer; font-weight: 800; font-size: 24px; min-height: 0; }
+.rs-compact { padding: 8px 18px; font-size: 30px; }
+.rs-scrim { z-index: 60; }
+.rs-modal { z-index: 61; width: 1100px; top: 160px; gap: 18px; }
+.rs-modal h1 { font-size: 52px; }
+.rs-choice { display: flex; align-items: center; gap: 22px; text-align: left; }
+.rs-text { display: flex; flex-direction: column; gap: 4px; }
+.rs-text strong { font-size: 34px; }
+.rs-text span { font-size: 24px; color: #3d4a48; }
+.rs-danger { border-color: var(--irreversible) !important; }
+.rs-danger .ms-letter { background: var(--irreversible); }
+.rs-warn { font-size: 30px; font-weight: 800; color: var(--irreversible); background: #fff1c2; border-radius: 16px; padding: 14px 20px; }

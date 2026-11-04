@@ -15,6 +15,7 @@ export const rpg = raw as unknown as {
   items: Item[];
   gifts: {roleChange: Record<RoleId, string>; caseComplete: Record<string, string>; gold: Record<string, string>};
   ui: Record<string, string>;
+  reset: {button: string; title: string; activity: string; all: string; cancel: string; allNote: string; allWarn: string; allYes: string; allNo: string; scopes: Record<string, string>};
   mentor: {name: string; start: string; nodes: Record<string, DialogNode>};
   animals: Animal[];
 };

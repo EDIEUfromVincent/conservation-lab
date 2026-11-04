@@ -95,25 +95,38 @@ describe('단계와 필요한 도구', () => {
 });
 
 describe('안전 운반 2·3단계', () => {
-  const route = (cfg: T.TransportCfg, limit: number) => {
+  /** 사람처럼: 문턱 근처에서는 안전 속력보다 margin만큼 느리게, 나머지는 빠르게. 걸린 시간도 돌려준다 */
+  const route = (cfg: T.TransportCfg, margin = 6) => {
     let s = T.newTransport();
+    let t = 0;
     for (const p of ROUTE) {
-      for (let i = 0; i < 4000 && !s.done && Math.hypot(p.x - s.x, p.y - s.y) > 12; i++) {
+      for (let i = 0; i < 20000 && !s.done && Math.hypot(p.x - s.x, p.y - s.y) > 14; i++) {
         const dx = p.x - s.x, dy = p.y - s.y, d = Math.hypot(dx, dy);
+        const near = cfg.bumps.some(b => s.x > b[0] - 60 && s.x < b[2] + 60 && s.y > b[1] - 60 && s.y < b[3] + 60);
+        const limit = Math.min(near ? cfg.safe - margin : T.MAX, 60 + d * 2.2);
         s = T.step(s, Math.hypot(s.vx, s.vy) < limit ? {x: dx / d, y: dy / d} : {x: 0, y: 0}, 1 / 60, cfg);
+        t += 1 / 60;
       }
     }
-    return s;
+    return {...s, t};
   };
-  it('3단계는 완충재 없이는 아무리 천천히 가도 실패하고, 완충재를 장착하면 금메달도 받을 수 있다', () => {
-    const best = 0.5;
-    expect(route(T.cfgFor(3, best, power([], {material: 9})), 50).done).toBe('lose');
-    const s = route(T.cfgFor(3, best, power(['cushion'])), 50);
-    expect(s.done).toBe('win');
-    expect(T.medalFor(s.shake, T.cfgFor(3, best, power(['cushion'])))).toBe('gold');
+  it('흔들림 규칙: 문턱 위에서 안전 속력 아래면 흔들리지 않고, 넘으면 흔들린다', () => {
+    const cfg = T.cfgFor(2, 0.5, power());
+    expect(route(cfg, 6).shake).toBeLessThan(5);
+    expect(route({...cfg, safe: cfg.safe - 40}, -40).shake).toBeGreaterThan(20);
   });
-  it('2단계는 도구 없이 천천히 가면 깰 수 있다', () => {
-    expect(route(T.cfgFor(2, 0.5, power()), 60).done).toBe('win');
+  it('3단계는 완충재 없이는 문턱마다 너무 느려 시간 안에 못 가고, 완충재가 있으면 넉넉히 도착한다', () => {
+    const none = route(T.cfgFor(3, 0.5, power([], {material: 9})));
+    expect(none.done).toBe('win');
+    expect(none.t).toBeGreaterThan(T.STAGE3_TIME + 5);
+    const cushion = route(T.cfgFor(3, 0.5, power(['cushion'])));
+    expect(cushion.t).toBeLessThan(T.STAGE3_TIME - 8);
+    expect(T.medalFor(cushion.shake, T.cfgFor(3, 0.5, power(['cushion'])))).toBe('gold');
+  });
+  it('2단계는 도구 없이 시간 안에 깰 수 있다', () => {
+    const s = route(T.cfgFor(2, 0.5, power()));
+    expect(s.done).toBe('win');
+    expect(s.t).toBeLessThan(T.cfgFor(2, 0.5, power()).time);
   });
 });
 
@@ -262,6 +275,10 @@ describe('번호 붙여 사진 찍기', () => {
     expect(Ph.STAGES[3].memo).toBe(1);
     expect(Ph.TAG_TIME).toBeGreaterThan(0);
     expect(Ph.fits(2, 2)).toBe(true);
+    const r = Ph.check(new Map([[0, 0], [1, 2], [2, 1], [3, 3]]));
+    expect(r.right).toEqual([0, 3]);
+    expect(r.wrong).toEqual([1, 2]);
+    expect([Ph.medalFor(1), Ph.medalFor(2), Ph.medalFor(3)]).toEqual(['gold', 'silver', 'bronze']);
     expect(Ph.toolsOf(power(['camera']))).toEqual({tags: false, camera: true});
   });
 });

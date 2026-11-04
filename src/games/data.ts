@@ -1,5 +1,5 @@
 import raw from '../../data/games.json' with {type: 'json'};
-import {safeGet, safeSet} from '../core/persistence';
+import {safeGet, safeSet, safeRemove} from '../core/persistence';
 import {rpg, stat, itemOf, type Hero} from '../rpg/hero';
 import type {RoleId} from '../roles/engine';
 import {GL} from './labels';
@@ -12,9 +12,9 @@ export interface Need {items?: string[]; stat?: {role: RoleId; level: number}}
 export interface StageInfo {name: string; sub: string; need?: Need}
 export interface Pack {label: string; shake: number; say: string; best?: boolean}
 export interface GameBase {id: string; name: string; role: RoleId; caseId: string; intro: string; howto: string; win: string; lose?: string; tip: string; stages: StageInfo[]}
-export interface TransportGame extends GameBase {packQ: string; packs: Pack[]; start: string; goal: string; bump: string; wall: string; lose: string}
+export interface TransportGame extends GameBase {packQ: string; packs: Pack[]; start: string; goal: string; bump: string; wall: string; lose: string; timeUp: string}
 export interface RustGame extends GameBase {found: string; green: string; miss: string; timeUp: string}
-export interface PhotoGame extends GameBase {memorize: string; place: string; peek: string; right: string; wrong: string; lose: string}
+export interface PhotoGame extends GameBase {memorize: string; place: string; peek: string; check: string; wrong: string; lose: string}
 export interface ClimateGame extends GameBase {humidity: string; temperature: string; dry: string; wet: string; cool: string; warm: string; events: string[]; danger: string; lose: string}
 export interface PeelGame extends GameBase {heat: string; press: string; tooHot: string; tooCold: string; tooHard: string; tooSoft: string; good: string; lose: string}
 export interface TetrisGame extends GameBase {next: string; lines: string; line: string; multi: string; lose: string; timeUp: string}
@@ -50,6 +50,13 @@ export function saveMedal(id: string, stage: StageNo, medal: Medal) {
   const better = !prev || ORDER.indexOf(medal) > ORDER.indexOf(prev);
   if (better) safeSet(KEY, JSON.stringify({...all, [id]: {...all[id], [stage]: medal}}));
   return better;
+}
+/** 다시하기: 이 게임(없으면 모든 게임)의 메달을 지운다 */
+export function clearMedals(id?: string) {
+  if (!id) { safeRemove(KEY); return; }
+  const all = medals();
+  delete all[id];
+  safeSet(KEY, JSON.stringify(all));
 }
 export const bestMedal = (book: MedalBook, id: string): Medal | undefined =>
   ([3, 2, 1] as StageNo[]).map(s => book[id]?.[s]).find(Boolean);

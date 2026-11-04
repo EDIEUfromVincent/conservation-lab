@@ -1,6 +1,6 @@
 import type {PhotoGame, Power, StageNo} from './data';
 import type {GameMount} from './env';
-import {hearts, medalByMistakes, seeded, shuffle} from './env';
+import {hearts, seeded, shuffle} from './env';
 import {el, button} from '../ui/dom';
 import {svg} from '../ui/art';
 import {GL} from './labels';
@@ -38,6 +38,14 @@ export function pieces(stage: StageNo) {
 
 /** 조각 i를 자리 j에 놓기: 맞으면 true. 순수 함수 */
 export const fits = (piece: number, slot: number) => piece === slot;
+/** 모두 놓은 뒤 확인: 제자리인 자리와 아닌 자리. at은 자리 → 놓인 조각 */
+export function check(at: Map<number, number>) {
+  const right: number[] = [], wrong: number[] = [];
+  for (const [slot, piece] of at) (fits(piece, slot) ? right : wrong).push(slot);
+  return {right, wrong};
+}
+/** 몇 번째 확인에서 다 맞혔는지로 메달: 첫 번째 금, 두 번째 은, 그 뒤 동 */
+export const medalFor = (round: number) => (round <= 1 ? 'gold' : round === 2 ? 'silver' : 'bronze') as 'gold' | 'silver' | 'bronze';
 
 export const mountPhoto: GameMount = env => {
   const game = env.game as unknown as PhotoGame;
@@ -45,10 +53,12 @@ export const mountPhoto: GameMount = env => {
   const tools = toolsOf(env.power);
   const list = pieces(env.stage);
   const order = shuffle(list.map(p => p.id), seeded(200 + env.stage));
-  const placed = new Set<number>();
+  const at = new Map<number, number>();      // 자리 → 놓인 조각
+  const locked = new Set<number>();          // 확인해서 맞은 자리(더 못 움직인다)
+  let marks = new Map<number, 'right' | 'wrong'>();
   let picked: number | null = null;
-  let mistakes = 0;
-  let phase: 'memo' | 'place' = 'memo';
+  let round = 0;
+  let phase: 'memo' | 'place' | 'check' = 'memo';
   let peeking = false;
   const timers: number[] = [];
 
@@ -70,44 +80,65 @@ export const mountPhoto: GameMount = env => {
   const prog = el('strong', {}, `0 / ${cfg.n}`);
   const msg = el('p', {class: 'gm-flash'});
   const peek = tools.camera ? button(`📷 ${game.peek}`, () => doPeek(), {class: 'ms-btn', 'data-testid': 'peek'}) : null;
-  env.side.append(el('p', {class: 'gm-count'}, `${GL.progress} `, prog), el('p', {class: 'gm-count'}, `${GL.left} `, left), msg);
+  env.side.append(el('p', {class: 'gm-count'}, `${GL.placed} `, prog), el('p', {class: 'gm-count'}, `${GL.left} `, left), msg);
   if (peek) env.side.append(peek);
 
   const render = () => {
     const showAll = phase === 'memo' || peeking;
     board.replaceChildren(...list.map(p => {
-      const has = placed.has(p.id);
-      const slot = el('button', {type: 'button', class: 'ph-slot' + (has ? ' done' : ''), 'data-slot': p.id, 'aria-label': `${p.id + 1}`,
-        onclick: () => drop(p.id)});
-      if (has || showAll) slot.append(art(p.id, tools.tags && phase === 'memo'));
-      if (peeking && !has) slot.classList.add('ghost');
+      const piece = at.get(p.id);
+      const mark = marks.get(p.id);
+      const slot = el('button', {type: 'button', class: 'ph-slot' + (piece !== undefined ? ' filled' : '') + (locked.has(p.id) ? ' done' : '') + (mark ? ` ${mark}` : ''),
+        'data-slot': p.id, 'aria-label': `${p.id + 1}`, onclick: () => tapSlot(p.id)});
+      if (peeking) { slot.append(art(p.id, false)); slot.classList.add('ghost'); }
+      else if (showAll) slot.append(art(p.id, tools.tags && phase === 'memo'));
+      else if (piece !== undefined) slot.append(art(piece, false));
+      if (mark) slot.append(el('span', {class: 'ph-mark'}, mark === 'right' ? '✓' : '✕'));
       return slot;
     }));
-    tray.replaceChildren(...(phase === 'memo' ? [] : order.filter(id => !placed.has(id)).map(id => {
-      const b = el('button', {type: 'button', class: 'ph-piece', 'data-piece': id, 'aria-pressed': picked === id, onclick: () => { picked = id; render(); }});
+    const inTray = order.filter(id => ![...at.values()].includes(id));
+    tray.replaceChildren(...(phase === 'memo' ? [] : inTray.map(id => {
+      const b = el('button', {type: 'button', class: 'ph-piece', 'data-piece': id, 'aria-pressed': picked === id, onclick: () => { if (phase === 'place') { picked = id; render(); } }});
       b.append(art(id, false));
       return b;
     })));
+    prog.textContent = `${at.size} / ${cfg.n}`;
     env.stageEl.dataset.phase = phase;
   };
 
-  const drop = (slot: number) => {
-    if (phase !== 'place' || picked === null || placed.has(slot)) return;
-    if (fits(picked, slot)) {
-      placed.add(slot);
-      picked = null;
-      msg.className = 'gm-flash found';
-      msg.textContent = game.right;
-    } else {
-      mistakes += 1;
-      msg.className = 'gm-flash';
-      msg.textContent = game.wrong;
-      left.textContent = hearts(cfg.lives - mistakes, cfg.lives);
-    }
-    prog.textContent = `${placed.size} / ${cfg.n}`;
+  /** 자리 누르기: 고른 조각을 놓거나(놓인 조각이 있으면 바꿔 넣기), 아무것도 안 골랐으면 놓인 조각을 빼낸다 */
+  const tapSlot = (slot: number) => {
+    if (phase !== 'place' || locked.has(slot)) return;
+    if (picked !== null) { at.set(slot, picked); picked = null; }
+    else if (at.has(slot)) at.delete(slot);
+    else return;
+    msg.textContent = '';
     render();
-    if (placed.size === cfg.n) env.end(medalByMistakes(mistakes, 0, 1));
-    else if (mistakes >= cfg.lives) env.end(null);
+    if (at.size === cfg.n) judge();
+  };
+
+  /** 모두 놓으면 한꺼번에 확인한다 */
+  const judge = () => {
+    round += 1;
+    phase = 'check';
+    const {right, wrong} = check(at);
+    marks = new Map([...right.map(s => [s, 'right'] as const), ...wrong.map(s => [s, 'wrong'] as const)]);
+    right.forEach(s => locked.add(s));
+    if (!wrong.length) { render(); env.end(medalFor(round)); return; }
+    left.textContent = hearts(cfg.lives - round, cfg.lives);
+    msg.className = 'gm-flash';
+    msg.textContent = `${GL.rightCount} ${right.length} / ${cfg.n} · ${game.wrong}`;
+    banner.textContent = game.check;
+    env.stageEl.dataset.wrong = String(wrong.length);
+    render();
+    if (round >= cfg.lives) { timers.push(window.setTimeout(() => env.end(null), 1400)); return; }
+    timers.push(window.setTimeout(() => {
+      wrong.forEach(s => at.delete(s));
+      marks = new Map([...marks].filter(([, m]) => m === 'right'));
+      phase = 'place';
+      banner.textContent = game.place;
+      render();
+    }, 1600));
   };
 
   const doPeek = () => {

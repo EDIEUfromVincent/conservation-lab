@@ -14,9 +14,9 @@ export const W = 1600, H = 760, BASKET_W = 220, BASKET_Y = 680, R = 36;
 type Kind = 'good' | 'white' | 'brown' | 'other';
 export interface CatchCfg {goal: number; lives: number; every: number; speed: number; bad: number; kinds: Kind[]; time: number; faint: boolean}
 export const STAGES: Record<StageNo, CatchCfg> = {
-  1: {goal: 8, lives: 5, every: 1.1, speed: 210, bad: 0.35, kinds: ['white', 'brown'], time: 70, faint: false},
-  2: {goal: 12, lives: 4, every: 0.8, speed: 300, bad: 0.5, kinds: ['white', 'brown', 'other'], time: 75, faint: false},
-  3: {goal: 16, lives: 3, every: 0.7, speed: 340, bad: 0.5, kinds: ['other'], time: 80, faint: true},
+  1: {goal: 10, lives: 4, every: 0.75, speed: 330, bad: 0.4, kinds: ['white', 'brown'], time: 60, faint: false},
+  2: {goal: 14, lives: 3, every: 0.55, speed: 450, bad: 0.5, kinds: ['white', 'brown', 'other'], time: 60, faint: false},
+  3: {goal: 18, lives: 3, every: 0.45, speed: 540, bad: 0.5, kinds: ['other'], time: 60, faint: true},
 };
 /** 무늬가 보이는 정도: 0 거의 안 보임, 1 또렷, 2 또렷 + 꽃병 조각 테두리 */
 export const sight = (cfg: CatchCfg, p: Power) => (p.has('microscope') ? 2 : p.has('loupe') ? 1 : cfg.faint ? 0 : 1);

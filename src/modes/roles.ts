@@ -1,4 +1,4 @@
-import {safeGet, safeSet} from '../core/persistence';
+import {safeGet, safeSet, safeRemove} from '../core/persistence';
 import {el, button, add} from '../ui/dom';
 import {fitStage} from '../ui/stage';
 import {RL} from '../roles/labels';
@@ -10,6 +10,7 @@ import {rankBadge, starredCases} from '../mission/progress';
 import {npcsFor, npcName, talkTo, showGains, bagButton, openBag} from '../rpg/ui';
 import {award, gainXp, giveItem, loadHero, rpg} from '../rpg/hero';
 import {PL} from '../rpg/labels';
+import {resetButton} from '../rpg/reset';
 import '../mission/style.css';
 import '../roles/style.css';
 
@@ -92,7 +93,7 @@ export function mountRoles(root: HTMLElement) {
     hud.replaceChildren(add(el('div', {class: 'ms-hud-row'}),
       el('a', {class: 'ms-pill ms-list', href: '?mode=teacher'}, `☰ ${RL.backLesson}`),
       el('div', {class: 'ms-pill ms-file'}, el('strong', {}, rolesData.title)),
-      el('div', {class: 'ms-hud-right'}, bagButton(stage), el('div', {class: 'ms-pill ms-rank'}, rankBadge(starredCases().length)), el('div', {class: 'ms-pill ms-count', 'data-testid': 'role-count'},
+      el('div', {class: 'ms-hud-right'}, resetButton(stage, 'roles', () => safeRemove(KEY)), bagButton(stage), el('div', {class: 'ms-pill ms-rank'}, rankBadge(starredCases().length)), el('div', {class: 'ms-pill ms-count', 'data-testid': 'role-count'},
         `${RL.progress} `, el('strong', {}, `${state.done.length}/${ROLE_IDS.length}`)))));
     layer.replaceChildren();
     ({intro: introView, map: mapView, webtoon: webtoonView, quiz: quizView, transform: transformView, done: doneView})[state.screen]();

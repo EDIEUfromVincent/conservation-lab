@@ -217,3 +217,18 @@ test('수업 앱 시작 화면의 사건 카드로 3D 미션을 바로 연다', 
   await page.locator('[data-testid=mission-cases] [data-case="case1"]').click();
   await expect(page.locator('#stage')).toHaveAttribute('data-screen', /incident|map|place|clue|lab|decision|outcome|history|complete/);
 });
+
+test('다시하기: 사건 파일 하나만 처음부터, 사건 목록에서는 다섯 사건 모두', async ({page}) => {
+  await open(page, '?mode=mission&case=case1');
+  await page.evaluate(() => { localStorage.clear(); localStorage.setItem('cons-lab:hero', JSON.stringify({version: 1, xp: {record: 0, analyze: 0, material: 0, undo: 0}, items: [], equipped: {}, talked: [], mentorDone: true})); });
+  await page.reload();
+  await page.keyboard.press('A');
+  await page.keyboard.press('PageDown');
+  await expect(page.getByTestId('joystick')).toBeVisible();
+  await expect.poll(() => page.evaluate(() => localStorage.getItem('cons-lab:mission:case1'))).not.toBeNull();
+  await page.getByTestId('reset').click();
+  await page.getByTestId('reset-activity').click();
+  await expect.poll(() => page.evaluate(() => JSON.parse(localStorage.getItem('cons-lab:mission:case1') ?? 'null')?.screen ?? 'gone')).not.toBe('map');
+  await open(page, '?mode=mission');
+  await expect(page.getByTestId('reset')).toBeVisible();
+});

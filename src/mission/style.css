@@ -360,3 +360,8 @@
 @keyframes scRise { from { opacity: 0; transform: translate(-50%, 30px); } to { opacity: 1; transform: translate(-50%, 0); } }
 @keyframes scSlot { 0% { transform: scale(3) rotate(-90deg); filter: brightness(2); } 100% { transform: scale(1) rotate(0); } }
 @keyframes scConfetti { 0% { transform: translateY(0) rotate(0); } 100% { transform: translateY(1150px) rotate(720deg); } }
+/* 사건 화면 위쪽 막대: 알약이 많아 한 줄에 들어가게 줄인다(제목은 말줄임) */
+.ms:not(.gm):not(.rl) .ms-hud-right { gap: 10px; }
+.ms:not(.gm):not(.rl) .ms-hud .ms-file { max-width: 330px; overflow: hidden; text-overflow: ellipsis; }
+.ms:not(.gm):not(.rl) .ms-hud .ms-count { font-size: 22px; padding: 8px 16px; }
+.ms:not(.gm):not(.rl) .ms-hud .ms-count strong { font-size: 24px; }

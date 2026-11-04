@@ -31,9 +31,9 @@ export function shape(k: number, r: number): Cell[] {
 
 export interface TetrisCfg {goal: number; time: number; ms: number; junk: number}
 export const STAGES: Record<StageNo, TetrisCfg> = {
-  1: {goal: 4, time: 180, ms: 800, junk: 0},
-  2: {goal: 8, time: 180, ms: 420, junk: 2},
-  3: {goal: 12, time: 180, ms: 110, junk: 6},
+  1: {goal: 5, time: 150, ms: 480, junk: 0},
+  2: {goal: 10, time: 180, ms: 240, junk: 3},
+  3: {goal: 14, time: 180, ms: 75, junk: 6},
 };
 /** 한 칸 떨어지는 간격(ms): 되돌리기 솜씨가 높을수록 느긋하다 */
 export const intervalFor = (stage: StageNo, p: Power) => STAGES[stage].ms * (1 + 0.6 * (p.lv('undo') - 1));
